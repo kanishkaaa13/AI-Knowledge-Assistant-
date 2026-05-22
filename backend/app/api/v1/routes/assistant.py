@@ -35,6 +35,7 @@ async def retrieve_context(
         user=current_user,
         query=payload.query,
         top_k=payload.top_k,
+        hybrid=payload.hybrid,
     )
 
 
@@ -48,5 +49,6 @@ async def query_assistant(
         user=current_user,
         query=payload.query,
         top_k=payload.top_k,
+        hybrid=payload.hybrid,
     )
     return AssistantQueryResponse(**result)

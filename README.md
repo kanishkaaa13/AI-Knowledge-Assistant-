@@ -184,6 +184,7 @@ npm run frontend:lint
 - Drag-and-drop document manager with progress, preview, and delete
 - LangChain + Sentence Transformers + ChromaDB RAG pipeline
 - Semantic retrieval, top-k context assembly, and prompt templating
+- Per-user ChromaDB collections with vector metadata and hybrid retrieval
 - Environment variable management for frontend and backend
 - PostgreSQL-ready SQLAlchemy session setup
 
@@ -191,6 +192,8 @@ npm run frontend:lint
 
 - Authentication and API scaffolding: [backend/app](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/app)
 - Phase 3 database design and ER explanation: [backend/PHASE3_DATABASE_ARCHITECTURE.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE3_DATABASE_ARCHITECTURE.md)
+- Phase 6 RAG architecture: [backend/PHASE6_RAG_ARCHITECTURE.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE6_RAG_ARCHITECTURE.md)
+- Phase 7 vector store architecture: [backend/PHASE7_VECTORSTORE_ARCHITECTURE.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE7_VECTORSTORE_ARCHITECTURE.md)
 
 ## Suggested Next Steps
 

@@ -23,6 +23,7 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         index=True,
     )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     vector_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
