@@ -28,6 +28,7 @@ class AssistantQueryRequest(BaseModel):
     query: str = Field(min_length=3)
     top_k: int | None = Field(default=None, ge=1, le=12)
     hybrid: bool = True
+    model: str = "llama3"
 
 
 class AssistantQueryResponse(BaseModel):
@@ -36,3 +37,4 @@ class AssistantQueryResponse(BaseModel):
     context: str
     chunks: list[RetrievedChunk]
     prompt: str
+    model: str

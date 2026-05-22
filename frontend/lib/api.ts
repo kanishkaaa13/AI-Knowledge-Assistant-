@@ -8,6 +8,7 @@ import {
   UploadedDocument,
   User
 } from "@/types/api";
+import type { RetrievedChunk } from "@/types/rag";
 
 export async function getHealth() {
   const { data } = await apiClient.get<HealthResponse>("/health");
@@ -80,5 +81,22 @@ export async function deleteDocument(documentId: string) {
 
 export async function getDocumentPreview(documentId: string) {
   const { data } = await apiClient.get<DocumentPreview>(`/documents/${documentId}/preview`);
+  return data;
+}
+
+export async function queryAssistant(payload: {
+  query: string;
+  model: "llama3" | "mistral";
+  top_k?: number;
+  hybrid?: boolean;
+}) {
+  const { data } = await apiClient.post<{
+    query: string;
+    answer: string;
+    context: string;
+    chunks: RetrievedChunk[];
+    prompt: string;
+    model: string;
+  }>("/assistant/query", payload);
   return data;
 }

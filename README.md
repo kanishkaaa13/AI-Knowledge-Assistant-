@@ -114,6 +114,9 @@ LLM_PROVIDER=openai
 LLM_MODEL_NAME=gpt-4.1-mini
 LLM_API_KEY=
 LLM_BASE_URL=
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_DEFAULT_MODEL=llama3
+OLLAMA_KEEP_ALIVE=5m
 BACKEND_CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
 ```
 
@@ -121,14 +124,22 @@ BACKEND_CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
 
 Create a PostgreSQL database named `ai_knowledge_assistant` and update `DATABASE_URL` if your credentials or port differ.
 
-### 3. Install frontend dependencies
+### 3. Start Ollama and pull local models
+
+```bash
+ollama serve
+ollama pull llama3
+ollama pull mistral
+```
+
+### 4. Install frontend dependencies
 
 ```bash
 cd frontend
 npm install
 ```
 
-### 4. Install backend dependencies
+### 5. Install backend dependencies
 
 ```bash
 cd backend
@@ -137,7 +148,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 5. Run the development servers
+### 6. Run the development servers
 
 Frontend:
 
@@ -185,6 +196,8 @@ npm run frontend:lint
 - LangChain + Sentence Transformers + ChromaDB RAG pipeline
 - Semantic retrieval, top-k context assembly, and prompt templating
 - Per-user ChromaDB collections with vector metadata and hybrid retrieval
+- Ollama local LLM chat generation with `llama3` and `mistral`
+- Streaming grounded answers in the chat UI with markdown rendering
 - Environment variable management for frontend and backend
 - PostgreSQL-ready SQLAlchemy session setup
 

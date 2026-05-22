@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     LLM_MODEL_NAME: str = "gpt-4.1-mini"
     LLM_API_KEY: str | None = None
     LLM_BASE_URL: str | None = None
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_DEFAULT_MODEL: str = "llama3"
+    OLLAMA_KEEP_ALIVE: str = "5m"
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

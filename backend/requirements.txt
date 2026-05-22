@@ -19,3 +19,4 @@ langchain-openai
 langchain-text-splitters
 chromadb
 sentence-transformers
+httpx

@@ -1,3 +1,4 @@
+from app.services.assistant_chat import AssistantChatService
 from app.services.document_upload import (
     create_document_record,
     delete_document_file,
@@ -7,6 +8,7 @@ from app.services.document_upload import (
 from app.services.document_parser import StoredDocumentParser
 from app.services.embeddings import get_embedding_model
 from app.services.llm_gateway import LLMGateway, get_llm_gateway
+from app.services.ollama_llm import OllamaLLMService
 from app.services.prompt_builder import build_rag_prompt
 from app.services.rag_pipeline import (
     RAGAnswerService,
@@ -17,7 +19,9 @@ from app.services.text_chunker import DocumentChunker
 from app.services.vector_store import ChromaVectorStoreService, get_vector_store_service
 
 __all__ = [
+    "AssistantChatService",
     "LLMGateway",
+    "OllamaLLMService",
     "StoredDocumentParser",
     "DocumentChunker",
     "ChromaVectorStoreService",

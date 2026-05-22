@@ -1,43 +1,25 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 
+import { queryAssistant } from "@/lib/api";
+import { streamAssistantChat } from "@/lib/chat-stream";
 import type { AssistantSettings, ChatMessage, ConversationPreview } from "@/types/chat";
 
 const starterConversations: ConversationPreview[] = [
   {
-    id: "conv-product-strategy",
-    title: "Product launch brief",
-    summary: "Outline a launch plan for the knowledge assistant.",
-    updatedAt: "2 min ago",
+    id: "conv-welcome",
+    title: "Welcome",
+    summary: "Grounded assistant with Ollama streaming",
+    updatedAt: "Now",
     messages: [
       {
-        id: "msg-1",
+        id: "msg-welcome",
         role: "assistant",
         content:
-          "Welcome back. I can help you plan launches, summarize research, and draft technical decisions. What should we tackle first?",
-        createdAt: "09:10"
-      }
-    ]
-  },
-  {
-    id: "conv-rag-stack",
-    title: "RAG architecture ideas",
-    summary: "Compare retrieval patterns and chunking strategies.",
-    updatedAt: "Yesterday",
-    messages: [
-      {
-        id: "msg-2",
-        role: "user",
-        content: "What is a good chunking strategy for markdown knowledge bases?",
-        createdAt: "Yesterday"
-      },
-      {
-        id: "msg-3",
-        role: "assistant",
-        content:
-          "For markdown-heavy corpora, chunk by heading hierarchy first, then cap by token budget. Preserve heading context in each chunk so retrieval results stay understandable.",
-        createdAt: "Yesterday"
+          "I answer only from your retrieved context. Upload documents, then ask grounded questions with `llama3` or `mistral`.",
+        createdAt: "Now"
       }
     ]
   }
@@ -45,7 +27,7 @@ const starterConversations: ConversationPreview[] = [
 
 const starterSettings: AssistantSettings = {
   theme: "system",
-  model: "GPT-4.1 mini",
+  model: "llama3",
   webSearch: true,
   streamResponses: true
 };
@@ -56,10 +38,6 @@ function createId(prefix: string) {
 
 function summarize(text: string) {
   return text.length > 72 ? `${text.slice(0, 72)}...` : text;
-}
-
-function buildResponse(prompt: string) {
-  return `Here is a focused response for your latest prompt.\n\n### Key takeaways\n- I captured the intent behind: "${prompt}".\n- This interface is ready for streaming, markdown answers, and code-heavy assistant replies.\n- The next backend step is to connect this composer to your conversation and message APIs.\n\n\`\`\`ts\nconst answer = await assistant.stream({\n  prompt: "${prompt.replace(/"/g, '\\"')}",\n  mode: "knowledge"\n});\n\`\`\`\n\nIf you want, I can also help turn this into a retrieval-aware assistant workflow with citations and saved conversation state.`;
 }
 
 export function useChat() {
@@ -81,7 +59,7 @@ export function useChat() {
     const newConversation: ConversationPreview = {
       id,
       title: "New conversation",
-      summary: "Start a new thread with your assistant.",
+      summary: "Start a grounded chat with your indexed documents.",
       updatedAt: "Just now",
       messages: []
     };
@@ -129,10 +107,8 @@ export function useChat() {
     };
 
     const assistantMessageId = createId("assistant");
-    const fullResponse = buildResponse(prompt);
 
     setInput("");
-
     setConversations((current) =>
       current.map((conversation) =>
         conversation.id !== targetId
@@ -148,7 +124,7 @@ export function useChat() {
                 {
                   id: assistantMessageId,
                   role: "assistant",
-                  content: settings.streamResponses ? "" : fullResponse,
+                  content: "",
                   createdAt: "Now",
                   isStreaming: settings.streamResponses
                 }
@@ -157,43 +133,58 @@ export function useChat() {
       )
     );
 
-    if (!settings.streamResponses) {
-      return;
-    }
+    const updateAssistantMessage = (updater: (current: string) => string, done = false) => {
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id !== targetId
+            ? conversation
+            : {
+                ...conversation,
+                messages: conversation.messages.map((message) =>
+                  message.id !== assistantMessageId
+                    ? message
+                    : {
+                        ...message,
+                        content: updater(message.content),
+                        isStreaming: !done && settings.streamResponses
+                      }
+                )
+              }
+        )
+      );
+    };
 
-    await new Promise<void>((resolve) => {
-      let index = 0;
-      const timer = window.setInterval(() => {
-        index += 8;
-        const nextSlice = fullResponse.slice(0, index);
-        const finished = index >= fullResponse.length;
-
-        setConversations((current) =>
-          current.map((conversation) =>
-            conversation.id !== targetId
-              ? conversation
-              : {
-                  ...conversation,
-                  messages: conversation.messages.map((message) =>
-                    message.id !== assistantMessageId
-                      ? message
-                      : {
-                          ...message,
-                          content: nextSlice,
-                          isStreaming: !finished
-                        }
-                  )
-                }
-          )
+    try {
+      if (settings.streamResponses) {
+        await streamAssistantChat(
+          {
+            query: prompt,
+            model: settings.model,
+            hybrid: true
+          },
+          {
+            onToken(token) {
+              updateAssistantMessage((current) => current + token);
+            },
+            onDone(payload) {
+              updateAssistantMessage(() => payload.answer, true);
+            }
+          }
         );
-
-        if (finished) {
-          window.clearInterval(timer);
-          resolve();
-        }
-      }, 45);
-    });
-  }, [activeConversationId, input, settings.streamResponses]);
+      } else {
+        const response = await queryAssistant({
+          query: prompt,
+          model: settings.model,
+          hybrid: true
+        });
+        updateAssistantMessage(() => response.answer, true);
+      }
+    } catch (error: any) {
+      const message = error?.message || "Unable to generate a local AI response.";
+      updateAssistantMessage(() => message, true);
+      toast.error(message);
+    }
+  }, [activeConversationId, input, settings.model, settings.streamResponses]);
 
   return {
     conversations,

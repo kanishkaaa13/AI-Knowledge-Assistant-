@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
-const models = ["GPT-4.1 mini", "GPT-4.1", "Claude Sonnet", "Perplexity-style Search"];
+const models: AssistantSettings["model"][] = ["llama3", "mistral"];
 const themes: AssistantSettings["theme"][] = ["light", "dark", "system"];
 
 export function SettingsModal({

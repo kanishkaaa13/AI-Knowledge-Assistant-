@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -6,7 +7,8 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.assistant import DashboardSummary
 from app.schemas.rag import AssistantQueryRequest, AssistantQueryResponse, RetrievalResponse
-from app.services.rag_pipeline import RAGAnswerService, RAGRetrievalService
+from app.services.assistant_chat import AssistantChatService
+from app.services.rag_pipeline import RAGRetrievalService
 
 router = APIRouter()
 
@@ -45,10 +47,27 @@ async def query_assistant(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AssistantQueryResponse:
-    result = RAGAnswerService(db).answer_query(
+    result = await AssistantChatService(RAGRetrievalService(db)).answer(
         user=current_user,
         query=payload.query,
+        model=payload.model,
         top_k=payload.top_k,
         hybrid=payload.hybrid,
     )
     return AssistantQueryResponse(**result)
+
+
+@router.post("/chat/stream")
+async def stream_assistant_chat(
+    payload: AssistantQueryRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    stream = AssistantChatService(RAGRetrievalService(db)).stream_answer(
+        user=current_user,
+        query=payload.query,
+        model=payload.model,
+        top_k=payload.top_k,
+        hybrid=payload.hybrid,
+    )
+    return StreamingResponse(stream, media_type="text/event-stream")

@@ -18,7 +18,7 @@ export interface ConversationPreview {
 
 export interface AssistantSettings {
   theme: "light" | "dark" | "system";
-  model: string;
+  model: "llama3" | "mistral";
   webSearch: boolean;
   streamResponses: boolean;
 }
