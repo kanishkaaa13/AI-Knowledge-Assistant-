@@ -9,7 +9,27 @@ from app.core.config import settings
 
 class DatabaseSessionManager:
     def __init__(self, database_url: str) -> None:
-        self.engine: Engine = create_engine(database_url, pool_pre_ping=True)
+        # Production-optimized database connection settings
+        engine_kwargs = {
+            "pool_pre_ping": True,
+            "pool_recycle": 3600,  # Recycle connections after 1 hour
+            "pool_size": 10,  # Base pool size
+            "max_overflow": 20,  # Additional connections when pool is full
+            "echo": settings.APP_ENV.lower() == "development",  # Log SQL in dev only
+        }
+        
+        # Additional production settings
+        if settings.APP_ENV.lower() == "production":
+            engine_kwargs.update({
+                "pool_size": 20,
+                "max_overflow": 40,
+                "connect_args": {
+                    "connect_timeout": 10,
+                    "sslmode": "require",  # Require SSL in production
+                }
+            })
+        
+        self.engine: Engine = create_engine(database_url, **engine_kwargs)
         self.session_factory = sessionmaker(
             autocommit=False,
             autoflush=False,

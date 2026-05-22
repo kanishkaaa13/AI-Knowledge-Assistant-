@@ -1,11 +1,13 @@
 # AI Knowledge Assistant
 
-Full-stack starter project for an AI Knowledge Assistant using a modern Next.js frontend and a FastAPI backend. This scaffold is designed for local development without Docker.
+Full-stack AI Knowledge Assistant with persistent chat memory, document RAG, and local AI inference. Deployed to production using Vercel (frontend) and Render (backend).
 
 ## Tech Stack
 
 - Frontend: Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui, Axios, React Query
 - Backend: FastAPI, PostgreSQL, SQLAlchemy, fastapi-jwt-auth
+- AI: Ollama (local LLM), Sentence Transformers, ChromaDB
+- Deployment: Vercel (frontend), Render (backend & database)
 
 ## Project Structure
 
@@ -207,10 +209,53 @@ npm run frontend:lint
 - Phase 3 database design and ER explanation: [backend/PHASE3_DATABASE_ARCHITECTURE.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE3_DATABASE_ARCHITECTURE.md)
 - Phase 6 RAG architecture: [backend/PHASE6_RAG_ARCHITECTURE.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE6_RAG_ARCHITECTURE.md)
 - Phase 7 vector store architecture: [backend/PHASE7_VECTORSTORE_ARCHITECTURE.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE7_VECTORSTORE_ARCHITECTURE.md)
+- Phase 9 chat memory architecture: [backend/PHASE9_CHAT_MEMORY_ARCHITECTURE.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE9_CHAT_MEMORY_ARCHITECTURE.md)
+- Phase 10-11 security and analytics: [backend/PHASE10_11_SECURITY_ANALYTICS.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE10_11_SECURITY_ANALYTICS.md)
+- Phase 12-13 advanced features and optimization: [backend/PHASE12_13_ADVANCED_FEATURES_OPTIMIZATION.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE12_13_ADVANCED_FEATURES_OPTIMIZATION.md)
 
-## Suggested Next Steps
+## Additional Documentation
 
-- Add Alembic migrations
-- Add document ingestion and embeddings pipeline
-- Add chat endpoints and persistent conversation history
-- Add role-based permissions and email verification
+- [Deployment Guide](DEPLOYMENT.md) - Complete production deployment instructions
+- [Production Checklist](PRODUCTION_CHECKLIST.md) - Pre-deployment verification checklist
+- [Scalability Recommendations](SCALABILITY.md) - Scaling strategies for production
+
+## Deployment
+
+### Quick Start (Development)
+
+See the [Setup](#setup) section below for local development.
+
+### Production Deployment
+
+For production deployment, follow the complete [Deployment Guide](DEPLOYMENT.md).
+
+**Quick Overview:**
+
+1. **Backend (Render)**
+   - Push code to GitHub
+   - Connect repository to Render
+   - Render auto-detects `render.yaml`
+   - Configure environment variables
+   - Run database migrations via Render Shell
+
+2. **Frontend (Vercel)**
+   - Connect repository to Vercel
+   - Select `frontend` directory
+   - Configure `NEXT_PUBLIC_API_BASE_URL` environment variable
+   - Deploy
+
+3. **Post-Deployment**
+   - Update backend CORS with frontend URL
+   - Configure Ollama (local or cloud)
+   - Run production checklist: [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md)
+
+**Production URLs:**
+- Frontend: Vercel provides URL (e.g., `https://your-app.vercel.app`)
+- Backend: Render provides URL (e.g., `https://your-backend.onrender.com`)
+- Database: Render PostgreSQL (managed)
+
+**Cost Estimates:**
+- Free tier: $0/month (first 90 days), then ~$7/month
+- Production: ~$52/month (Vercel Pro + Render Standard + PostgreSQL)
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
