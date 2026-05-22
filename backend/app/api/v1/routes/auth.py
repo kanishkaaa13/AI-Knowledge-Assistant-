@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -17,6 +18,7 @@ router = APIRouter()
 
 
 def set_auth_cookies(response: Response, user: User) -> None:
+    """Set authentication cookies for the user."""
     access_token = create_access_token(data={"sub": str(user.id)})
     response.set_cookie(
         key="access_token",
@@ -34,6 +36,21 @@ async def register(
     response: Response,
     db: Session = Depends(get_db),
 ) -> AuthResponse:
+    """
+    Register a new user account.
+    
+    Args:
+        payload: User creation data with validated password
+        request: FastAPI request object for rate limiting
+        response: FastAPI response object for setting cookies
+        db: Database session
+        
+    Returns:
+        AuthResponse: Created user data with success message
+        
+    Raises:
+        HTTPException: If registration fails due to validation or existing email
+    """
     apply_rate_limit(request, scope="auth-register", limit=5)
     payload.name = ensure_present(sanitize_text(payload.name, max_length=255), field_name="name")
     payload.email = ensure_present(sanitize_text(payload.email, max_length=255).lower(), field_name="email")
@@ -44,7 +61,15 @@ async def register(
             detail="An account with this email already exists.",
         )
 
-    user = create_user(db, payload)
+    try:
+        user = create_user(db, payload)
+    except ValueError as e:
+        # Handle password hashing errors (e.g., bcrypt limit exceeded)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
     set_auth_cookies(response, user)
     return AuthResponse(user=UserRead.model_validate(user), message="Account created.")
 
@@ -56,6 +81,21 @@ async def login(
     response: Response,
     db: Session = Depends(get_db),
 ) -> AuthResponse:
+    """
+    Authenticate a user and create a session.
+    
+    Args:
+        payload: User login credentials with validated password
+        request: FastAPI request object for rate limiting
+        response: FastAPI response object for setting cookies
+        db: Database session
+        
+    Returns:
+        AuthResponse: Authenticated user data with success message
+        
+    Raises:
+        HTTPException: If authentication fails due to invalid credentials
+    """
     apply_rate_limit(request, scope="auth-login", limit=8)
     payload.email = ensure_present(sanitize_text(payload.email, max_length=255).lower(), field_name="email")
     user = get_user_by_email(db, payload.email)
@@ -74,8 +114,18 @@ async def refresh(
     response: Response,
     db: Session = Depends(get_db),
 ) -> AuthResponse:
-    # For simplicity, we'll just require re-login for now
-    # A full refresh token implementation can be added later
+    """
+    Refresh the authentication token.
+    
+    Currently requires re-login. A full refresh token implementation can be added later.
+    
+    Args:
+        response: FastAPI response object
+        db: Database session
+        
+    Raises:
+        HTTPException: Always requires re-login for now
+    """
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Please login again.",
@@ -84,10 +134,28 @@ async def refresh(
 
 @router.post("/logout")
 async def logout(response: Response) -> dict[str, str]:
+    """
+    Log out the current user by clearing authentication cookies.
+    
+    Args:
+        response: FastAPI response object for clearing cookies
+        
+    Returns:
+        dict: Success message
+    """
     response.delete_cookie(key="access_token")
     return {"message": "Logged out successfully."}
 
 
 @router.get("/me", response_model=UserRead)
 async def me(current_user: User = Depends(get_current_user)) -> UserRead:
+    """
+    Get the current authenticated user's information.
+    
+    Args:
+        current_user: The authenticated user from dependency injection
+        
+    Returns:
+        UserRead: Current user's data
+    """
     return UserRead.model_validate(current_user)
