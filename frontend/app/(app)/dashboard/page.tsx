@@ -2,6 +2,7 @@
 
 import { Activity, Brain, FileText, Zap } from "lucide-react";
 
+import { useAuth } from "@/components/providers/auth-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDashboardSummary } from "@/hooks/use-dashboard-summary";
 
@@ -9,6 +10,7 @@ const icons = [Brain, FileText, Zap, Activity];
 
 export default function DashboardPage() {
   const { data, isLoading } = useDashboardSummary();
+  const { user } = useAuth();
 
   return (
     <div className="space-y-6">
@@ -23,6 +25,11 @@ export default function DashboardPage() {
               {data?.description ??
                 "A responsive dashboard scaffold for knowledge ingestion, retrieval, and AI-driven workflows."}
             </p>
+            {user ? (
+              <p className="mt-4 text-sm text-muted-foreground">
+                Welcome back, <span className="font-medium text-foreground">{user.name}</span>.
+              </p>
+            ) : null}
           </div>
           <div className="rounded-2xl bg-secondary px-4 py-3 text-sm text-muted-foreground">
             {isLoading ? "Syncing summary..." : "Backend summary loaded via React Query"}

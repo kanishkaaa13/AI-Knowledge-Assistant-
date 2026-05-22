@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = Field(
         default="postgresql+psycopg://postgres:postgres@localhost:5432/ai_knowledge_assistant"
     )
+    JWT_SECRET_KEY: str = "change-me-in-production"
+    JWT_ACCESS_TOKEN_EXPIRES_MINUTES: int = 30
+    JWT_REFRESH_TOKEN_EXPIRES_DAYS: int = 7
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

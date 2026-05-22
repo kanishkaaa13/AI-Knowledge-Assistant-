@@ -5,7 +5,7 @@ Full-stack starter project for an AI Knowledge Assistant using a modern Next.js 
 ## Tech Stack
 
 - Frontend: Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui, Axios, React Query
-- Backend: FastAPI, PostgreSQL, SQLAlchemy
+- Backend: FastAPI, PostgreSQL, SQLAlchemy, fastapi-jwt-auth
 
 ## Project Structure
 
@@ -20,22 +20,35 @@ AI-Knowledge Assistant/
 │   │   ├── api/
 │   │   │   └── v1/
 │   │   │       ├── routes/
+│   │   │       │   ├── auth.py
 │   │   │       │   ├── assistant.py
 │   │   │       │   └── health.py
 │   │   │       └── router.py
+│   │   ├── api/
+│   │   │   └── deps.py
 │   │   ├── core/
-│   │   │   └── config.py
+│   │   │   ├── config.py
+│   │   │   ├── middleware.py
+│   │   │   └── security.py
 │   │   ├── db/
 │   │   │   ├── base.py
 │   │   │   └── session.py
 │   │   ├── main.py
 │   │   ├── models/
+│   │   │   └── user.py
 │   │   ├── schemas/
-│   │   │   └── assistant.py
+│   │   │   ├── assistant.py
+│   │   │   └── auth.py
 │   │   └── services/
+│   │       └── auth.py
 │   └── requirements.txt
 └── frontend/
     ├── app/
+    │   ├── (auth)/
+    │   │   ├── login/
+    │   │   │   └── page.tsx
+    │   │   └── register/
+    │   │       └── page.tsx
     │   ├── (app)/
     │   │   ├── dashboard/
     │   │   │   └── page.tsx
@@ -45,14 +58,17 @@ AI-Knowledge Assistant/
     │   ├── loading.tsx
     │   └── page.tsx
     ├── components/
+    │   ├── auth/
     │   ├── layout/
     │   ├── providers/
     │   └── ui/
     ├── hooks/
     ├── lib/
+    │   └── validations/
     ├── public/
     ├── types/
     ├── components.json
+    ├── middleware.ts
     ├── next.config.ts
     ├── next-env.d.ts
     ├── package.json
@@ -83,6 +99,9 @@ PROJECT_NAME=AI Knowledge Assistant
 APP_ENV=development
 API_V1_PREFIX=/api/v1
 DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/ai_knowledge_assistant
+JWT_SECRET_KEY=change-me-in-production
+JWT_ACCESS_TOKEN_EXPIRES_MINUTES=30
+JWT_REFRESH_TOKEN_EXPIRES_DAYS=7
 BACKEND_CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
 ```
 
@@ -134,17 +153,23 @@ npm run frontend:lint
 - Responsive landing page
 - Dashboard layout with sidebar
 - Dark mode using `next-themes`
+- Login and register pages with validated forms
+- Protected frontend routes plus logout flow
+- Toast notifications for auth feedback
 - Tailwind CSS with design tokens
 - Reusable UI primitives inspired by shadcn/ui
 - Axios API client
 - React Query provider and dashboard hook
 - FastAPI application factory
+- JWT auth with access and refresh cookies
+- Bcrypt password hashing
+- SQLAlchemy user model and automatic table creation
 - Environment variable management for frontend and backend
 - PostgreSQL-ready SQLAlchemy session setup
 
 ## Suggested Next Steps
 
 - Add Alembic migrations
-- Add authentication
 - Add document ingestion and embeddings pipeline
 - Add chat endpoints and persistent conversation history
+- Add role-based permissions and email verification

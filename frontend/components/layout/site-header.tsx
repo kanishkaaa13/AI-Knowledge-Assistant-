@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function SiteHeader() {
@@ -18,7 +19,12 @@ export function SiteHeader() {
             </p>
           </div>
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <Button asChild variant="secondary" size="sm">
+            <Link href="/login">Log in</Link>
+          </Button>
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

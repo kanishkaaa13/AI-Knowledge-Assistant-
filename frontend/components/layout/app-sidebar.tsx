@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { BrainCircuit, LayoutDashboard, MessageSquareText, Settings } from "lucide-react";
 
+import { useAuth } from "@/components/providers/auth-provider";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -12,11 +16,18 @@ const navigation = [
 ];
 
 export function AppSidebar() {
+  const { logoutUser, user } = useAuth();
+
   return (
     <aside className="glass-panel flex w-full flex-col gap-6 p-5 lg:min-h-[calc(100vh-2rem)] lg:w-72">
       <div>
         <p className="text-sm font-medium text-muted-foreground">Workspace</p>
         <h2 className="mt-1 text-2xl font-semibold">Assistant Console</h2>
+        {user ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Signed in as <span className="font-medium text-foreground">{user.name}</span>
+          </p>
+        ) : null}
       </div>
 
       <div className="rounded-3xl bg-primary/10 p-4 text-sm">
@@ -48,6 +59,16 @@ export function AppSidebar() {
           </Link>
         ))}
       </nav>
+
+      <div className="mt-auto rounded-3xl border border-border/60 p-4">
+        <p className="text-sm font-medium">Session</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Secure JWT cookies keep your session active across refresh cycles.
+        </p>
+        <Button className="mt-4 w-full" variant="secondary" onClick={() => void logoutUser()}>
+          Log out
+        </Button>
+      </div>
     </aside>
   );
 }

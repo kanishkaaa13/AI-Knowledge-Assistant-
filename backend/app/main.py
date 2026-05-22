@@ -1,8 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi_jwt_auth.exceptions import AuthJWTException
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.middleware import JWTContextMiddleware
+from app.core import security
+from app.db.base import Base
+from app.db.session import engine
+from app.models import User
+
+
+def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(AuthJWTException)
+    async def authjwt_exception_handler(_, exc: AuthJWTException):
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
 
 
 def create_application() -> FastAPI:
@@ -20,6 +33,12 @@ def create_application() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(JWTContextMiddleware)
+    register_exception_handlers(app)
+
+    @app.on_event("startup")
+    async def on_startup() -> None:
+        Base.metadata.create_all(bind=engine)
 
     @app.get("/", tags=["root"])
     async def root() -> dict[str, str]:

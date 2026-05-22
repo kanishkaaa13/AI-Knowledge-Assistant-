@@ -50,7 +50,7 @@ export default function LandingPage() {
                 </Link>
               </Button>
               <Button asChild variant="secondary" size="lg">
-                <a href="#features">Explore features</a>
+                <Link href="/register">Create account</Link>
               </Button>
             </div>
           </div>
