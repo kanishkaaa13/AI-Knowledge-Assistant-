@@ -53,6 +53,7 @@ class DocumentChunkBase(ORMBaseSchema):
     chunk_index: int = Field(ge=0)
     content: str = Field(min_length=1)
     token_count: int | None = Field(default=None, ge=0)
+    vector_id: str | None = None
 
 
 class DocumentChunkCreate(DocumentChunkBase):

@@ -20,6 +20,7 @@ from app.services.document_upload import (
     parse_upload,
     preview_text,
 )
+from app.services.rag_pipeline import RAGIngestionService
 
 router = APIRouter()
 
@@ -54,6 +55,7 @@ async def upload_document(
         title=title.strip() or upload_data.safe_file_name,
         upload_data=upload_data,
     )
+    RAGIngestionService(db).index_document(document)
     return UploadedDocumentRead.model_validate(document)
 
 
@@ -128,5 +130,6 @@ async def delete_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
     delete_document_file(document)
+    RAGIngestionService(db).delete_document_index(document.id)
     repository.delete(document)
     return {"message": "Document deleted successfully."}

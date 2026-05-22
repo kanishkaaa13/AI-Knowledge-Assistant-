@@ -23,6 +23,16 @@ class Settings(BaseSettings):
     UPLOAD_ROOT_DIR: str = "storage/uploads"
     MAX_UPLOAD_SIZE_BYTES: int = 10485760
     ALLOWED_UPLOAD_EXTENSIONS: list[str] = [".pdf", ".docx", ".txt", ".md"]
+    CHROMA_PERSIST_DIRECTORY: str = "storage/chroma"
+    CHROMA_COLLECTION_NAME: str = "knowledge_chunks"
+    EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
+    RAG_CHUNK_SIZE: int = 500
+    RAG_CHUNK_OVERLAP: int = 50
+    RAG_TOP_K: int = 4
+    LLM_PROVIDER: str = "openai"
+    LLM_MODEL_NAME: str = "gpt-4.1-mini"
+    LLM_API_KEY: str | None = None
+    LLM_BASE_URL: str | None = None
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

@@ -43,3 +43,6 @@ class DocumentRepository(BaseRepository[UploadedDocument]):
             .order_by(DocumentChunk.chunk_index.asc())
         )
         return list(self.db.scalars(statement).all())
+
+    def count_by_user(self, user_id: uuid.UUID) -> int:
+        return len(self.list_by_user(user_id))

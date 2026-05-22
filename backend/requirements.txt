@@ -12,3 +12,10 @@ alembic
 python-multipart
 pypdf
 python-docx
+langchain
+langchain-chroma
+langchain-huggingface
+langchain-openai
+langchain-text-splitters
+chromadb
+sentence-transformers

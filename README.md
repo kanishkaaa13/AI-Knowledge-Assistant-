@@ -104,6 +104,16 @@ JWT_ACCESS_TOKEN_EXPIRES_MINUTES=30
 JWT_REFRESH_TOKEN_EXPIRES_DAYS=7
 UPLOAD_ROOT_DIR=storage/uploads
 MAX_UPLOAD_SIZE_BYTES=10485760
+CHROMA_PERSIST_DIRECTORY=storage/chroma
+CHROMA_COLLECTION_NAME=knowledge_chunks
+EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
+RAG_CHUNK_SIZE=500
+RAG_CHUNK_OVERLAP=50
+RAG_TOP_K=4
+LLM_PROVIDER=openai
+LLM_MODEL_NAME=gpt-4.1-mini
+LLM_API_KEY=
+LLM_BASE_URL=
 BACKEND_CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
 ```
 
@@ -172,6 +182,8 @@ npm run frontend:lint
 - SQLAlchemy models with Alembic-managed migrations
 - Secure document uploads with local per-user storage
 - Drag-and-drop document manager with progress, preview, and delete
+- LangChain + Sentence Transformers + ChromaDB RAG pipeline
+- Semantic retrieval, top-k context assembly, and prompt templating
 - Environment variable management for frontend and backend
 - PostgreSQL-ready SQLAlchemy session setup
 

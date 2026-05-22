@@ -25,5 +25,6 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    vector_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
 
     document: Mapped["UploadedDocument"] = relationship(back_populates="chunks")
