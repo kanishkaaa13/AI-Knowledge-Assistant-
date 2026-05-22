@@ -156,6 +156,9 @@ npm run frontend:lint
 - Login and register pages with validated forms
 - Protected frontend routes plus logout flow
 - Toast notifications for auth feedback
+- ChatGPT-style chat interface with sidebar and conversation history
+- Markdown rendering, code blocks, copy actions, and streaming UI
+- Responsive mobile chat layout with profile dropdown and settings modal
 - Tailwind CSS with design tokens
 - Reusable UI primitives inspired by shadcn/ui
 - Axios API client
@@ -163,9 +166,14 @@ npm run frontend:lint
 - FastAPI application factory
 - JWT auth with access and refresh cookies
 - Bcrypt password hashing
-- SQLAlchemy user model and automatic table creation
+- SQLAlchemy models with Alembic-managed migrations
 - Environment variable management for frontend and backend
 - PostgreSQL-ready SQLAlchemy session setup
+
+## Architecture Notes
+
+- Authentication and API scaffolding: [backend/app](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/app)
+- Phase 3 database design and ER explanation: [backend/PHASE3_DATABASE_ARCHITECTURE.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE3_DATABASE_ARCHITECTURE.md)
 
 ## Suggested Next Steps
 

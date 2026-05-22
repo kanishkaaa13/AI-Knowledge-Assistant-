@@ -1,8 +1,9 @@
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.setting import Setting
 from app.models.user import User
-from app.schemas.auth import UserCreate
+from app.repositories.user import UserRepository
+from app.schemas.user import UserCreate
 
 import bcrypt
 
@@ -16,8 +17,7 @@ def verify_password(password: str, hashed_password: str) -> bool:
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
-    statement = select(User).where(User.email == email.lower())
-    return db.scalar(statement)
+    return UserRepository(db).get_by_email(email)
 
 
 def create_user(db: Session, payload: UserCreate) -> User:
@@ -27,6 +27,8 @@ def create_user(db: Session, payload: UserCreate) -> User:
         hashed_password=hash_password(payload.password),
     )
     db.add(user)
+    db.flush()
+    db.add(Setting(user_id=user.id))
     db.commit()
     db.refresh(user)
     return user

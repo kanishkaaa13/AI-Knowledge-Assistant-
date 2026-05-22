@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import Depends, HTTPException, status
 from fastapi_jwt_auth import AuthJWT
 from sqlalchemy.orm import Session
@@ -19,7 +21,7 @@ def get_current_user(
             detail="Authentication required.",
         ) from exc
 
-    user = db.get(User, int(subject))
+    user = db.get(User, uuid.UUID(subject))
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

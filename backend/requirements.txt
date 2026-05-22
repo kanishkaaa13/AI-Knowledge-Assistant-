@@ -8,3 +8,4 @@ fastapi-jwt-auth
 bcrypt
 email-validator
 PyJWT
+alembic

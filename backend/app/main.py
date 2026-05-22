@@ -4,12 +4,10 @@ from fastapi.responses import JSONResponse
 from fastapi_jwt_auth.exceptions import AuthJWTException
 
 from app.api.v1.router import api_router
+from app import models  # noqa: F401
 from app.core.config import settings
 from app.core.middleware import JWTContextMiddleware
 from app.core import security
-from app.db.base import Base
-from app.db.session import engine
-from app.models import User
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -35,10 +33,6 @@ def create_application() -> FastAPI:
     )
     app.add_middleware(JWTContextMiddleware)
     register_exception_handlers(app)
-
-    @app.on_event("startup")
-    async def on_startup() -> None:
-        Base.metadata.create_all(bind=engine)
 
     @app.get("/", tags=["root"])
     async def root() -> dict[str, str]:

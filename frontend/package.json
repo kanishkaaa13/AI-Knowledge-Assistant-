@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "latest",
+    "@radix-ui/react-dialog": "latest",
+    "@radix-ui/react-dropdown-menu": "latest",
     "@radix-ui/react-slot": "latest",
     "@tanstack/react-query": "latest",
     "@tanstack/react-query-devtools": "latest",
@@ -22,7 +24,9 @@
     "next-themes": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "react-markdown": "latest",
     "react-hook-form": "latest",
+    "rehype-highlight": "latest",
     "sonner": "latest",
     "tailwind-merge": "latest",
     "zod": "latest"

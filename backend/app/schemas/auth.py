@@ -1,12 +1,6 @@
-from datetime import datetime
+from pydantic import BaseModel, EmailStr, Field
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
-
-
-class UserCreate(BaseModel):
-    name: str = Field(min_length=2, max_length=255)
-    email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
+from app.schemas.user import UserRead
 
 
 class UserLogin(BaseModel):
@@ -14,16 +8,6 @@ class UserLogin(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
-class UserResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    name: str
-    email: EmailStr
-    created_at: datetime
-
-
 class AuthResponse(BaseModel):
-    user: UserResponse
+    user: UserRead
     message: str
-
