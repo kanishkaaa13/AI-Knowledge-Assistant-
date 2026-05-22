@@ -31,3 +31,34 @@ export interface DashboardSummary {
     value: string;
   }>;
 }
+
+export interface UploadedDocument {
+  id: string;
+  user_id: string;
+  title: string;
+  file_name: string;
+  file_extension: string;
+  file_path: string | null;
+  mime_type: string | null;
+  file_size: number | null;
+  checksum: string;
+  page_count: number | null;
+  word_count: number | null;
+  status: string;
+  extracted_text: string | null;
+  created_at: string;
+  updated_at: string;
+  preview_text?: string | null;
+}
+
+export interface DocumentPreview {
+  id: string;
+  title: string;
+  file_name: string;
+  file_extension: string;
+  mime_type: string | null;
+  file_size: number | null;
+  page_count: number | null;
+  word_count: number | null;
+  preview_text: string | null;
+}

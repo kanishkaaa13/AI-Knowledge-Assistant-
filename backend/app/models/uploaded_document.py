@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import ForeignKey, Index, Integer, String, Text
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,6 +14,7 @@ class UploadedDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         Index("ix_uploaded_documents_user_id_updated_at", "user_id", "updated_at"),
         Index("ix_uploaded_documents_user_id_status", "user_id", "status"),
+        UniqueConstraint("user_id", "checksum", name="uq_uploaded_documents_user_checksum"),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -24,9 +25,13 @@ class UploadedDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_extension: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     mime_type: Mapped[str | None] = mapped_column(String(120), nullable=True)
     file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="uploaded", index=True)
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 

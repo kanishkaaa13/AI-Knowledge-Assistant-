@@ -102,6 +102,8 @@ DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/ai_knowledge_
 JWT_SECRET_KEY=change-me-in-production
 JWT_ACCESS_TOKEN_EXPIRES_MINUTES=30
 JWT_REFRESH_TOKEN_EXPIRES_DAYS=7
+UPLOAD_ROOT_DIR=storage/uploads
+MAX_UPLOAD_SIZE_BYTES=10485760
 BACKEND_CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
 ```
 
@@ -138,6 +140,7 @@ Backend:
 
 ```bash
 cd backend
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
@@ -167,6 +170,8 @@ npm run frontend:lint
 - JWT auth with access and refresh cookies
 - Bcrypt password hashing
 - SQLAlchemy models with Alembic-managed migrations
+- Secure document uploads with local per-user storage
+- Drag-and-drop document manager with progress, preview, and delete
 - Environment variable management for frontend and backend
 - PostgreSQL-ready SQLAlchemy session setup
 

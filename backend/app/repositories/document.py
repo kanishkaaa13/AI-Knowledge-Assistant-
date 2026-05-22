@@ -20,6 +20,22 @@ class DocumentRepository(BaseRepository[UploadedDocument]):
         )
         return list(self.db.scalars(statement).all())
 
+    def get_by_user(self, document_id: uuid.UUID, user_id: uuid.UUID) -> UploadedDocument | None:
+        statement = select(UploadedDocument).where(
+            UploadedDocument.id == document_id,
+            UploadedDocument.user_id == user_id,
+        )
+        return self.db.scalar(statement)
+
+    def get_by_user_and_checksum(
+        self, user_id: uuid.UUID, checksum: str
+    ) -> UploadedDocument | None:
+        statement = select(UploadedDocument).where(
+            UploadedDocument.user_id == user_id,
+            UploadedDocument.checksum == checksum,
+        )
+        return self.db.scalar(statement)
+
     def list_chunks(self, document_id: uuid.UUID) -> list[DocumentChunk]:
         statement = (
             select(DocumentChunk)

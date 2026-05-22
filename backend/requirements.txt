@@ -9,3 +9,6 @@ bcrypt
 email-validator
 PyJWT
 alembic
+python-multipart
+pypdf
+python-docx

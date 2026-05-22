@@ -5,10 +5,12 @@ from app.schemas.conversation import (
     ConversationUpdate,
 )
 from app.schemas.document import (
+    DocumentPreviewRead,
     DocumentChunkCreate,
     DocumentChunkRead,
     DocumentChunkUpdate,
     UploadedDocumentCreate,
+    UploadedDocumentListItem,
     UploadedDocumentRead,
     UploadedDocumentUpdate,
 )
@@ -21,6 +23,7 @@ __all__ = [
     "ConversationCreate",
     "ConversationRead",
     "ConversationUpdate",
+    "DocumentPreviewRead",
     "DocumentChunkCreate",
     "DocumentChunkRead",
     "DocumentChunkUpdate",
@@ -31,6 +34,7 @@ __all__ = [
     "SettingRead",
     "SettingUpdate",
     "UploadedDocumentCreate",
+    "UploadedDocumentListItem",
     "UploadedDocumentRead",
     "UploadedDocumentUpdate",
     "UserCreate",

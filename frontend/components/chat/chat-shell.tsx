@@ -9,6 +9,7 @@ import { ChatHeader } from "@/components/chat/chat-header";
 import { ChatInput } from "@/components/chat/chat-input";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
 import { ChatThread } from "@/components/chat/chat-thread";
+import { DocumentManager } from "@/components/documents/document-manager";
 import { MobileSidebar } from "@/components/chat/mobile-sidebar";
 import { ProfileDropdown } from "@/components/chat/profile-dropdown";
 import { SettingsModal } from "@/components/chat/settings-modal";
@@ -96,6 +97,8 @@ export function ChatShell({
           />
         </main>
       </div>
+
+      <DocumentManager />
 
       <MobileSidebar open={isSidebarOpen} onOpenChange={onSidebarOpenChange}>
         <ChatSidebar
