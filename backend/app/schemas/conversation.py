@@ -3,6 +3,7 @@ import uuid
 from pydantic import Field
 
 from app.schemas.common import ORMBaseSchema, TimestampSchema
+from app.schemas.message import MessageRead
 
 
 class ConversationBase(ORMBaseSchema):
@@ -10,8 +11,9 @@ class ConversationBase(ORMBaseSchema):
     summary: str | None = None
 
 
-class ConversationCreate(ConversationBase):
-    user_id: uuid.UUID
+class ConversationCreate(ORMBaseSchema):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    initial_message: str | None = Field(default=None, min_length=1)
 
 
 class ConversationUpdate(ORMBaseSchema):
@@ -21,3 +23,16 @@ class ConversationUpdate(ORMBaseSchema):
 
 class ConversationRead(ConversationBase, TimestampSchema):
     user_id: uuid.UUID
+
+
+class ConversationListItem(ConversationRead):
+    message_count: int = 0
+    last_message_preview: str | None = None
+
+
+class ConversationDetail(ConversationRead):
+    messages: list[MessageRead] = Field(default_factory=list)
+
+
+class ConversationRename(ORMBaseSchema):
+    title: str = Field(min_length=1, max_length=255)

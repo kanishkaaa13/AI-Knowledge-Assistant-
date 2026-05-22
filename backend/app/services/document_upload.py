@@ -8,11 +8,14 @@ from io import BytesIO
 from pathlib import Path
 
 from docx import Document as DocxDocument
+from cryptography.fernet import InvalidToken
 from fastapi import HTTPException, UploadFile, status
 from pypdf import PdfReader
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.crypto import encryption_service
+from app.core.sanitize import ensure_present, sanitize_text
 from app.models.uploaded_document import UploadedDocument
 from app.models.user import User
 from app.repositories.document import DocumentRepository
@@ -32,6 +35,7 @@ class ExtractedDocumentData:
     word_count: int
     storage_path: str
     safe_file_name: str
+    encrypted_size: int
 
 
 def _sanitize_file_name(file_name: str) -> str:
@@ -98,10 +102,26 @@ async def parse_upload(file: UploadFile, user_id: uuid.UUID) -> ExtractedDocumen
     extracted_text, page_count = _extract_text(extension, file_bytes)
     word_count = len(extracted_text.split()) if extracted_text else 0
 
+    allowed_mime_types = {
+        ".pdf": {"application/pdf"},
+        ".docx": {
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/zip",
+        },
+        ".txt": {"text/plain"},
+        ".md": {"text/markdown", "text/plain", "text/x-markdown"},
+    }
+    if file.content_type and file.content_type not in allowed_mime_types.get(extension, set()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File content type does not match the selected extension.",
+        )
+
     user_dir = _resolve_upload_dir(user_id)
-    stored_name = f"{checksum[:16]}-{safe_name}"
+    stored_name = f"{checksum[:16]}-{safe_name}.bin"
     file_path = user_dir / stored_name
-    file_path.write_bytes(file_bytes)
+    encrypted_bytes = encryption_service.encrypt_bytes(file_bytes)
+    file_path.write_bytes(encrypted_bytes)
 
     return ExtractedDocumentData(
         file_extension=extension,
@@ -113,6 +133,7 @@ async def parse_upload(file: UploadFile, user_id: uuid.UUID) -> ExtractedDocumen
         word_count=word_count,
         storage_path=str(file_path.resolve()),
         safe_file_name=safe_name,
+        encrypted_size=len(encrypted_bytes),
     )
 
 
@@ -130,6 +151,7 @@ def create_document_record(
     upload_data: ExtractedDocumentData,
 ) -> UploadedDocument:
     repository = DocumentRepository(db)
+    safe_title = ensure_present(sanitize_text(title, max_length=255), field_name="title")
     existing = repository.get_by_user_and_checksum(user.id, upload_data.checksum)
     if existing:
         existing_path = Path(upload_data.storage_path)
@@ -142,7 +164,7 @@ def create_document_record(
 
     return repository.create(
         user_id=user.id,
-        title=title,
+        title=safe_title,
         file_name=upload_data.safe_file_name,
         file_extension=upload_data.file_extension,
         file_path=upload_data.storage_path,
@@ -162,3 +184,20 @@ def delete_document_file(document: UploadedDocument) -> None:
     file_path = Path(document.file_path)
     if file_path.exists():
         file_path.unlink()
+
+
+def read_encrypted_document_bytes(document: UploadedDocument) -> bytes:
+    if not document.file_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored file not found.")
+
+    file_path = Path(document.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored file not found.")
+
+    try:
+        return encryption_service.decrypt_bytes(file_path.read_bytes())
+    except InvalidToken as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Stored file could not be decrypted.",
+        ) from exc

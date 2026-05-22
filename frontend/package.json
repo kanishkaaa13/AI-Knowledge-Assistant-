@@ -25,6 +25,7 @@
     "react": "latest",
     "react-dom": "latest",
     "react-markdown": "latest",
+    "recharts": "latest",
     "react-hook-form": "latest",
     "rehype-highlight": "latest",
     "sonner": "latest",

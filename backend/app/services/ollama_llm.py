@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import HTTPException, status
@@ -15,6 +16,9 @@ class OllamaLLMService:
     def __init__(self) -> None:
         self.base_url = settings.OLLAMA_BASE_URL.rstrip("/")
         self.keep_alive = settings.OLLAMA_KEEP_ALIVE
+        parsed = urlparse(self.base_url)
+        if settings.ENFORCE_LOCAL_ONLY_AI and parsed.hostname not in {"localhost", "127.0.0.1"}:
+            raise RuntimeError("OLLAMA_BASE_URL must stay local for privacy-first inference.")
 
     def _validate_model(self, model: str) -> str:
         normalized = model.strip().lower()

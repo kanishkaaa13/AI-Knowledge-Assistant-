@@ -1,6 +1,10 @@
+from app.schemas.assistant import AnalyticsOverview, DashboardSummary
 from app.schemas.auth import AuthResponse, UserLogin
 from app.schemas.conversation import (
     ConversationCreate,
+    ConversationDetail,
+    ConversationListItem,
+    ConversationRename,
     ConversationRead,
     ConversationUpdate,
 )
@@ -26,9 +30,13 @@ from app.schemas.user import UserCreate, UserRead, UserSettingsSummary, UserUpda
 
 __all__ = [
     "AuthResponse",
+    "AnalyticsOverview",
     "AssistantQueryRequest",
     "AssistantQueryResponse",
     "ConversationCreate",
+    "ConversationDetail",
+    "ConversationListItem",
+    "ConversationRename",
     "ConversationRead",
     "ConversationUpdate",
     "DocumentPreviewRead",
@@ -53,3 +61,4 @@ __all__ = [
     "UserSettingsSummary",
     "UserUpdate",
 ]
+    "DashboardSummary",

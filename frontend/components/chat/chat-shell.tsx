@@ -3,7 +3,7 @@
 import { Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { AssistantSettings, ConversationPreview } from "@/types/chat";
+import type { AssistantSettings, ConversationGroup } from "@/types/chat";
 
 import { ChatHeader } from "@/components/chat/chat-header";
 import { ChatInput } from "@/components/chat/chat-input";
@@ -19,14 +19,20 @@ import type { ChatMessage } from "@/types/chat";
 interface ChatShellProps {
   activeConversationId?: string;
   activeConversationTitle?: string;
-  conversations: ConversationPreview[];
+  groupedConversations: ConversationGroup[];
+  historySearch: string;
   input: string;
+  isConversationLoading: boolean;
+  isHistoryLoading: boolean;
   isSettingsOpen: boolean;
   isSidebarOpen: boolean;
   messages: ChatMessage[];
   settings: AssistantSettings;
   onCreateConversation: () => void;
+  onDeleteConversation: (conversationId: string) => Promise<void>;
+  onHistorySearchChange: (value: string) => void;
   onInputChange: (value: string) => void;
+  onRenameConversation: (conversationId: string, title: string) => Promise<void>;
   onSelectConversation: (conversationId: string) => void;
   onSendMessage: () => Promise<void>;
   onSettingsChange: (settings: AssistantSettings) => void;
@@ -37,14 +43,20 @@ interface ChatShellProps {
 export function ChatShell({
   activeConversationId,
   activeConversationTitle,
-  conversations,
+  groupedConversations,
+  historySearch,
   input,
+  isConversationLoading,
+  isHistoryLoading,
   isSettingsOpen,
   isSidebarOpen,
   messages,
   settings,
   onCreateConversation,
+  onDeleteConversation,
+  onHistorySearchChange,
   onInputChange,
+  onRenameConversation,
   onSelectConversation,
   onSendMessage,
   onSettingsChange,
@@ -58,9 +70,13 @@ export function ChatShell({
       <div className="hidden xl:block">
         <ChatSidebar
           activeConversationId={activeConversationId}
-          activeConversationTitle={activeConversationTitle}
-          conversations={conversations}
+          groupedConversations={groupedConversations}
+          historySearch={historySearch}
+          isLoading={isHistoryLoading}
           onCreateConversation={onCreateConversation}
+          onDeleteConversation={onDeleteConversation}
+          onHistorySearchChange={onHistorySearchChange}
+          onRenameConversation={onRenameConversation}
           onSelectConversation={onSelectConversation}
         />
       </div>
@@ -88,7 +104,11 @@ export function ChatShell({
         </header>
 
         <main className="flex min-h-0 flex-1 flex-col">
-          <ChatThread messages={messages} userName={user?.name ?? "You"} />
+          <ChatThread
+            isLoading={isConversationLoading}
+            messages={messages}
+            userName={user?.name ?? "You"}
+          />
           <ChatInput
             input={input}
             onInputChange={onInputChange}
@@ -103,9 +123,13 @@ export function ChatShell({
       <MobileSidebar open={isSidebarOpen} onOpenChange={onSidebarOpenChange}>
         <ChatSidebar
           activeConversationId={activeConversationId}
-          activeConversationTitle={activeConversationTitle}
-          conversations={conversations}
+          groupedConversations={groupedConversations}
+          historySearch={historySearch}
+          isLoading={isHistoryLoading}
           onCreateConversation={onCreateConversation}
+          onDeleteConversation={onDeleteConversation}
+          onHistorySearchChange={onHistorySearchChange}
+          onRenameConversation={onRenameConversation}
           onSelectConversation={onSelectConversation}
         />
       </MobileSidebar>

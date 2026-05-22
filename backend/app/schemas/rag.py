@@ -29,6 +29,7 @@ class AssistantQueryRequest(BaseModel):
     top_k: int | None = Field(default=None, ge=1, le=12)
     hybrid: bool = True
     model: str = "llama3"
+    conversation_id: uuid.UUID | None = None
 
 
 class AssistantQueryResponse(BaseModel):
@@ -38,3 +39,5 @@ class AssistantQueryResponse(BaseModel):
     chunks: list[RetrievedChunk]
     prompt: str
     model: str
+    conversation_id: uuid.UUID
+    conversation_title: str

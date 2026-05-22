@@ -51,10 +51,15 @@ class ChromaVectorStoreService:
         collection = self._collection(user_id)
         documents = [record.document for record in records]
         embeddings = self.embedding_model.embed_documents(documents)
+        metadatas = []
+        for record in records:
+            metadata = dict(record.metadata)
+            metadata.setdefault("user_id", str(user_id))
+            metadatas.append(metadata)
         collection.upsert(
             ids=[record.id for record in records],
             documents=documents,
-            metadatas=[record.metadata for record in records],
+            metadatas=metadatas,
             embeddings=embeddings,
         )
 
@@ -85,6 +90,7 @@ class ChromaVectorStoreService:
         results = collection.query(
             query_embeddings=[query_embedding],
             n_results=top_k,
+            where={"user_id": str(user_id)},
             include=["documents", "metadatas", "distances"],
         )
         return self._format_query_results(results)

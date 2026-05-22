@@ -1,20 +1,68 @@
+from __future__ import annotations
+
+import jwt
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
+from app.core.rate_limit import apply_rate_limit, client_identifier
 
-import jwt
+
+PUBLIC_PATH_PREFIXES = {
+    "/",
+    "/docs",
+    "/redoc",
+    "/openapi.json",
+}
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "same-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
 
 class JWTContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         request.state.user_id = None
+        request.state.client_id = client_identifier(request)
 
         token = request.cookies.get("access_token")
         if token:
             try:
-                payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=["HS256"])
+                payload = jwt.decode(
+                    token,
+                    settings.JWT_SECRET_KEY,
+                    algorithms=["HS256"],
+                    options={"require": ["sub", "exp"]},
+                )
                 request.state.user_id = payload.get("sub")
             except jwt.PyJWTError:
                 request.state.user_id = None
 
+        return await call_next(request)
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        path = request.url.path
+        if path in PUBLIC_PATH_PREFIXES or path.startswith("/docs") or path.startswith("/redoc"):
+            return await call_next(request)
+
+        limit = settings.RATE_LIMIT_MAX_REQUESTS
+        if "/auth/" in path:
+            limit = settings.RATE_LIMIT_AUTH_MAX_REQUESTS
+        elif "/documents/upload" in path:
+            limit = settings.RATE_LIMIT_UPLOAD_MAX_REQUESTS
+
+        apply_rate_limit(
+            request,
+            scope=path,
+            limit=limit,
+            user_id=getattr(request.state, "user_id", None),
+        )
         return await call_next(request)

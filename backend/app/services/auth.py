@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from app.core.sanitize import sanitize_text
 from app.models.setting import Setting
 from app.models.user import User
 from app.repositories.user import UserRepository
@@ -17,13 +18,13 @@ def verify_password(password: str, hashed_password: str) -> bool:
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
-    return UserRepository(db).get_by_email(email)
+    return UserRepository(db).get_by_email(sanitize_text(email, max_length=255).lower())
 
 
 def create_user(db: Session, payload: UserCreate) -> User:
     user = User(
-        name=payload.name.strip(),
-        email=payload.email.lower(),
+        name=sanitize_text(payload.name, max_length=255),
+        email=sanitize_text(payload.email, max_length=255).lower(),
         hashed_password=hash_password(payload.password),
     )
     db.add(user)

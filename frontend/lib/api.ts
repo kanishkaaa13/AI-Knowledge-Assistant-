@@ -2,6 +2,9 @@ import { apiClient } from "@/lib/api-client";
 import {
   AuthFormValues,
   AuthResponse,
+  AnalyticsOverview,
+  ConversationDetail,
+  ConversationListItem,
   DocumentPreview,
   DashboardSummary,
   HealthResponse,
@@ -17,6 +20,11 @@ export async function getHealth() {
 
 export async function getDashboardSummary() {
   const { data } = await apiClient.get<DashboardSummary>("/assistant/summary");
+  return data;
+}
+
+export async function getAnalyticsOverview() {
+  const { data } = await apiClient.get<AnalyticsOverview>("/assistant/analytics");
   return data;
 }
 
@@ -84,11 +92,44 @@ export async function getDocumentPreview(documentId: string) {
   return data;
 }
 
+export async function listConversations(search?: string) {
+  const { data } = await apiClient.get<ConversationListItem[]>("/conversations", {
+    params: search?.trim() ? { search } : undefined
+  });
+  return data;
+}
+
+export async function getConversation(conversationId: string) {
+  const { data } = await apiClient.get<ConversationDetail>(`/conversations/${conversationId}`);
+  return data;
+}
+
+export async function createConversation(payload?: {
+  title?: string;
+  initial_message?: string;
+}) {
+  const { data } = await apiClient.post<ConversationDetail>("/conversations", payload ?? {});
+  return data;
+}
+
+export async function renameConversation(conversationId: string, title: string) {
+  const { data } = await apiClient.patch<ConversationListItem>(`/conversations/${conversationId}`, {
+    title
+  });
+  return data;
+}
+
+export async function deleteConversation(conversationId: string) {
+  const { data } = await apiClient.delete<{ message: string }>(`/conversations/${conversationId}`);
+  return data;
+}
+
 export async function queryAssistant(payload: {
   query: string;
   model: "llama3" | "mistral";
   top_k?: number;
   hybrid?: boolean;
+  conversation_id?: string;
 }) {
   const { data } = await apiClient.post<{
     query: string;
@@ -97,6 +138,8 @@ export async function queryAssistant(payload: {
     chunks: RetrievedChunk[];
     prompt: string;
     model: string;
+    conversation_id: string;
+    conversation_title: string;
   }>("/assistant/query", payload);
   return data;
 }

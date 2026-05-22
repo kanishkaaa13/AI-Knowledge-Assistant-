@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.document_chunk import DocumentChunk
@@ -45,4 +46,30 @@ class DocumentRepository(BaseRepository[UploadedDocument]):
         return list(self.db.scalars(statement).all())
 
     def count_by_user(self, user_id: uuid.UUID) -> int:
-        return len(self.list_by_user(user_id))
+        statement = select(func.count(UploadedDocument.id)).where(UploadedDocument.user_id == user_id)
+        return int(self.db.scalar(statement) or 0)
+
+    def total_storage_by_user(self, user_id: uuid.UUID) -> int:
+        statement = select(func.coalesce(func.sum(UploadedDocument.file_size), 0)).where(
+            UploadedDocument.user_id == user_id
+        )
+        return int(self.db.scalar(statement) or 0)
+
+    def recent_by_user(self, user_id: uuid.UUID, limit: int = 5) -> list[UploadedDocument]:
+        statement = (
+            select(UploadedDocument)
+            .where(UploadedDocument.user_id == user_id)
+            .order_by(UploadedDocument.created_at.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(statement).all())
+
+    def upload_counts_by_day(self, user_id: uuid.UUID, limit: int = 7) -> list[tuple[datetime, int]]:
+        statement = (
+            select(func.date_trunc("day", UploadedDocument.created_at), func.count(UploadedDocument.id))
+            .where(UploadedDocument.user_id == user_id)
+            .group_by(func.date_trunc("day", UploadedDocument.created_at))
+            .order_by(func.date_trunc("day", UploadedDocument.created_at).desc())
+            .limit(limit)
+        )
+        return [(row[0], int(row[1])) for row in self.db.execute(statement).all()]

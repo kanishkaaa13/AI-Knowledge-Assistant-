@@ -6,7 +6,7 @@ from fastapi_jwt_auth.exceptions import AuthJWTException
 from app.api.v1.router import api_router
 from app import models  # noqa: F401
 from app.core.config import settings
-from app.core.middleware import JWTContextMiddleware
+from app.core.middleware import JWTContextMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 from app.core import security
 
 
@@ -31,7 +31,9 @@ def create_application() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(JWTContextMiddleware)
+    app.add_middleware(RateLimitMiddleware)
     register_exception_handlers(app)
 
     @app.get("/", tags=["root"])

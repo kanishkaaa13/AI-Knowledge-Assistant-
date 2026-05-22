@@ -7,6 +7,17 @@ type RetryableAxiosRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
 };
 
+function readCookie(name: string) {
+  if (typeof document === "undefined") {
+    return undefined;
+  }
+
+  const match = document.cookie
+    .split("; ")
+    .find((entry) => entry.startsWith(`${name}=`));
+  return match?.split("=")[1];
+}
+
 export const apiClient = axios.create({
   baseURL: env.NEXT_PUBLIC_API_BASE_URL,
   withCredentials: true,
@@ -17,6 +28,21 @@ export const apiClient = axios.create({
 
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
+
+apiClient.interceptors.request.use((config) => {
+  const method = (config.method ?? "get").toLowerCase();
+  if (!["post", "put", "patch", "delete"].includes(method)) {
+    return config;
+  }
+
+  const isRefresh = config.url?.includes("/auth/refresh");
+  const csrfToken = readCookie(isRefresh ? "csrf_refresh_token" : "csrf_access_token");
+  if (csrfToken) {
+    config.headers.set("X-CSRF-Token", decodeURIComponent(csrfToken));
+  }
+
+  return config;
+});
 
 apiClient.interceptors.response.use(
   (response) => response,

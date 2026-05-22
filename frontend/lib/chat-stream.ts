@@ -1,11 +1,23 @@
 import { env } from "@/lib/env";
 
+function readCookie(name: string) {
+  if (typeof document === "undefined") {
+    return undefined;
+  }
+
+  const match = document.cookie
+    .split("; ")
+    .find((entry) => entry.startsWith(`${name}=`));
+  return match?.split("=")[1];
+}
+
 export async function streamAssistantChat(
   payload: {
     query: string;
     model: "llama3" | "mistral";
     top_k?: number;
     hybrid?: boolean;
+    conversation_id?: string;
   },
   handlers: {
     onContext?: (data: any) => void;
@@ -17,7 +29,8 @@ export async function streamAssistantChat(
     method: "POST",
     credentials: "include",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "X-CSRF-Token": decodeURIComponent(readCookie("csrf_access_token") ?? "")
     },
     body: JSON.stringify(payload)
   });

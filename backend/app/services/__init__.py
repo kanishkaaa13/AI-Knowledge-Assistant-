@@ -1,4 +1,6 @@
 from app.services.assistant_chat import AssistantChatService
+from app.services.analytics import AnalyticsService
+from app.services.chat_memory import ChatMemoryService
 from app.services.document_upload import (
     create_document_record,
     delete_document_file,
@@ -20,6 +22,8 @@ from app.services.vector_store import ChromaVectorStoreService, get_vector_store
 
 __all__ = [
     "AssistantChatService",
+    "AnalyticsService",
+    "ChatMemoryService",
     "LLMGateway",
     "OllamaLLMService",
     "StoredDocumentParser",

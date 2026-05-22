@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { BrainCircuit, LayoutDashboard, MessageSquareText, Settings } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, MessageSquareText } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Badge } from "@/components/ui/badge";
@@ -9,14 +10,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navigation = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, active: true },
-  { href: "#", label: "Knowledge Base", icon: BrainCircuit, active: false },
-  { href: "#", label: "Conversations", icon: MessageSquareText, active: false },
-  { href: "#", label: "Settings", icon: Settings, active: false }
+  { href: "/analytics", label: "Analytics", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Chat Workspace", icon: MessageSquareText }
 ];
 
 export function AppSidebar() {
   const { logoutUser, user } = useAuth();
+  const pathname = usePathname();
 
   return (
     <aside className="glass-panel flex w-full flex-col gap-6 p-5 lg:min-h-[calc(100vh-2rem)] lg:w-72">
@@ -43,13 +43,13 @@ export function AppSidebar() {
       </div>
 
       <nav className="space-y-2">
-        {navigation.map(({ href, label, icon: Icon, active }) => (
+        {navigation.map(({ href, label, icon: Icon }) => (
           <Link
             key={label}
             href={href}
             className={cn(
               "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition-colors",
-              active
+              pathname === href
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             )}
