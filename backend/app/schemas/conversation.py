@@ -9,6 +9,7 @@ from app.schemas.message import MessageRead
 class ConversationBase(ORMBaseSchema):
     title: str = Field(min_length=1, max_length=255)
     summary: str | None = None
+    is_favorite: bool = False
 
 
 class ConversationCreate(ORMBaseSchema):
@@ -19,6 +20,7 @@ class ConversationCreate(ORMBaseSchema):
 class ConversationUpdate(ORMBaseSchema):
     title: str | None = Field(default=None, min_length=1, max_length=255)
     summary: str | None = None
+    is_favorite: bool | None = None
 
 
 class ConversationRead(ConversationBase, TimestampSchema):
@@ -36,3 +38,7 @@ class ConversationDetail(ConversationRead):
 
 class ConversationRename(ORMBaseSchema):
     title: str = Field(min_length=1, max_length=255)
+
+
+class ConversationFavoriteUpdate(ORMBaseSchema):
+    is_favorite: bool

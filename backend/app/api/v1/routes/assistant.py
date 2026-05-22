@@ -12,14 +12,28 @@ from app.models.user import User
 from app.repositories.conversation import ConversationRepository
 from app.repositories.document import DocumentRepository
 from app.repositories.message import MessageRepository
-from app.schemas.assistant import AnalyticsOverview, DashboardSummary
+from app.schemas.assistant import (
+    AnalyticsOverview,
+    AssistantQuizResponse,
+    AssistantSummaryRequest,
+    AssistantSummaryResponse,
+    DashboardSummary,
+    SemanticDocumentSearchItem,
+    SemanticDocumentSearchResponse,
+    SuggestedPromptsResponse,
+)
 from app.schemas.rag import AssistantQueryRequest, AssistantQueryResponse, RetrievalResponse
-from app.services.assistant_chat import AssistantChatService
 from app.services.analytics import AnalyticsService
+from app.services.assistant_chat import AssistantChatService
+from app.services.assistant_features import AssistantFeatureService
 from app.services.chat_memory import ChatMemoryService
 from app.services.rag_pipeline import RAGRetrievalService
 
 router = APIRouter()
+
+
+def _sanitized_document_ids(document_ids: list[str]) -> list[str]:
+    return [item for item in document_ids if item]
 
 
 @router.get("/summary", response_model=DashboardSummary)
@@ -35,10 +49,7 @@ async def get_summary(
     return DashboardSummary(
         title="AI Knowledge Assistant",
         description="Monitor private knowledge ingestion, local-only AI usage, and chat activity from one place.",
-        stats=[
-            {"label": metric.label, "value": metric.value}
-            for metric in analytics.metrics
-        ],
+        stats=[{"label": metric.label, "value": metric.value} for metric in analytics.metrics],
     )
 
 
@@ -70,6 +81,7 @@ async def retrieve_context(
         query=payload.query,
         top_k=payload.top_k,
         hybrid=payload.hybrid,
+        document_ids=_sanitized_document_ids(payload.document_ids),
     )
 
 
@@ -101,6 +113,7 @@ async def query_assistant(
         model=payload.model,
         top_k=payload.top_k,
         hybrid=payload.hybrid,
+        document_ids=_sanitized_document_ids(payload.document_ids),
     )
     updated_conversation = memory.sync_conversation_after_response(
         conversation=conversation,
@@ -142,6 +155,7 @@ async def stream_assistant_chat(
             model=payload.model,
             top_k=payload.top_k,
             hybrid=payload.hybrid,
+            document_ids=_sanitized_document_ids(payload.document_ids),
         )
 
         async for chunk in assistant_stream:
@@ -169,3 +183,95 @@ async def stream_assistant_chat(
             yield f"data: {json.dumps(data)}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/summaries", response_model=AssistantSummaryResponse)
+async def summarize_documents(
+    payload: AssistantSummaryRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AssistantSummaryResponse:
+    apply_rate_limit(request, scope="assistant-summaries", limit=20, user_id=str(current_user.id))
+    payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
+    result = await AssistantFeatureService(RAGRetrievalService(db)).summarize_documents(
+        user=current_user,
+        query=payload.query,
+        model=payload.model,
+        document_ids=_sanitized_document_ids(payload.document_ids),
+    )
+    return AssistantSummaryResponse(**result)
+
+
+@router.post("/quiz", response_model=AssistantQuizResponse)
+async def generate_quiz(
+    payload: AssistantSummaryRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AssistantQuizResponse:
+    apply_rate_limit(request, scope="assistant-quiz", limit=20, user_id=str(current_user.id))
+    payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
+    result = await AssistantFeatureService(RAGRetrievalService(db)).generate_quiz(
+        user=current_user,
+        query=payload.query,
+        model=payload.model,
+        document_ids=_sanitized_document_ids(payload.document_ids),
+    )
+    return AssistantQuizResponse(**result)
+
+
+@router.post("/suggested-prompts", response_model=SuggestedPromptsResponse)
+async def suggested_prompts(
+    payload: AssistantSummaryRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> SuggestedPromptsResponse:
+    apply_rate_limit(request, scope="assistant-suggested-prompts", limit=20, user_id=str(current_user.id))
+    payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
+    result = await AssistantFeatureService(RAGRetrievalService(db)).suggested_prompts(
+        user=current_user,
+        query=payload.query,
+        model=payload.model,
+        document_ids=_sanitized_document_ids(payload.document_ids),
+    )
+    return SuggestedPromptsResponse(**result)
+
+
+@router.post("/document-search", response_model=SemanticDocumentSearchResponse)
+async def semantic_document_search(
+    payload: AssistantSummaryRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> SemanticDocumentSearchResponse:
+    apply_rate_limit(request, scope="assistant-document-search", limit=30, user_id=str(current_user.id))
+    safe_query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
+    retrieval = RAGRetrievalService(db).retrieve(
+        user=current_user,
+        query=safe_query,
+        top_k=8,
+        hybrid=True,
+        document_ids=_sanitized_document_ids(payload.document_ids),
+    )
+    seen: set[str] = set()
+    results: list[SemanticDocumentSearchItem] = []
+    repository = DocumentRepository(db)
+    for chunk in retrieval.chunks:
+        key = str(chunk.document_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        document = repository.get_by_user(chunk.document_id, current_user.id)
+        results.append(
+            SemanticDocumentSearchItem(
+                document_id=key,
+                title=chunk.document_title,
+                filename=chunk.filename,
+                excerpt=chunk.content[:220],
+                score=chunk.score,
+                tags=[item.strip() for item in (document.tags or "").split(",") if item.strip()] if document else [],
+            )
+        )
+    return SemanticDocumentSearchResponse(results=results)

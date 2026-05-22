@@ -1,14 +1,23 @@
-from app.schemas.assistant import AnalyticsOverview, DashboardSummary
+from app.schemas.assistant import (
+    AnalyticsOverview,
+    AssistantQuizResponse,
+    AssistantSummaryResponse,
+    DashboardSummary,
+    SuggestedPromptsResponse,
+)
 from app.schemas.auth import AuthResponse, UserLogin
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationDetail,
+    ConversationFavoriteUpdate,
     ConversationListItem,
     ConversationRename,
     ConversationRead,
     ConversationUpdate,
 )
 from app.schemas.document import (
+    DocumentListResponse,
+    DocumentMetadataUpdate,
     DocumentPreviewRead,
     DocumentChunkCreate,
     DocumentChunkRead,
@@ -29,16 +38,22 @@ from app.schemas.setting import SettingCreate, SettingRead, SettingUpdate
 from app.schemas.user import UserCreate, UserRead, UserSettingsSummary, UserUpdate
 
 __all__ = [
-    "AuthResponse",
     "AnalyticsOverview",
     "AssistantQueryRequest",
     "AssistantQueryResponse",
+    "AssistantQuizResponse",
+    "AssistantSummaryResponse",
+    "AuthResponse",
     "ConversationCreate",
     "ConversationDetail",
+    "ConversationFavoriteUpdate",
     "ConversationListItem",
     "ConversationRename",
     "ConversationRead",
     "ConversationUpdate",
+    "DashboardSummary",
+    "DocumentListResponse",
+    "DocumentMetadataUpdate",
     "DocumentPreviewRead",
     "DocumentChunkCreate",
     "DocumentChunkRead",
@@ -51,6 +66,7 @@ __all__ = [
     "SettingCreate",
     "SettingRead",
     "SettingUpdate",
+    "SuggestedPromptsResponse",
     "UploadedDocumentCreate",
     "UploadedDocumentListItem",
     "UploadedDocumentRead",
@@ -61,4 +77,3 @@ __all__ = [
     "UserSettingsSummary",
     "UserUpdate",
 ]
-    "DashboardSummary",

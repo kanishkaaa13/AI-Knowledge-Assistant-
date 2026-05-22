@@ -5,6 +5,7 @@ import uuid
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.cache import app_cache
 from app.core.config import settings
 from app.models.document_chunk import DocumentChunk
 from app.models.uploaded_document import UploadedDocument
@@ -13,8 +14,6 @@ from app.repositories.chunk import DocumentChunkRepository
 from app.repositories.document import DocumentRepository
 from app.schemas.rag import RetrievedChunk, RetrievalResponse
 from app.services.document_parser import StoredDocumentParser
-from app.services.llm_gateway import get_llm_gateway
-from app.services.prompt_builder import build_rag_prompt
 from app.services.text_chunker import DocumentChunker
 from app.services.vector_store import VectorRecord, get_vector_store_service
 
@@ -51,6 +50,7 @@ class RAGIngestionService:
             "user_id": str(document.user_id),
             "filename": document.file_name,
             "upload_timestamp": document.created_at.isoformat(),
+            "tags": document.tags or "",
         }
         split_docs = self.chunker.chunk_pages(pages=pages, metadata=base_metadata)
 
@@ -92,9 +92,11 @@ class RAGIngestionService:
             raise
 
         document.status = "indexed"
+        document.processing_error = None
         self.db.add(document)
         self.db.commit()
         self.db.refresh(document)
+        app_cache.delete_prefix(f"retrieval:{document.user_id}:")
         return created_chunks
 
     def delete_document_index(self, document_id: uuid.UUID) -> None:
@@ -109,6 +111,7 @@ class RAGIngestionService:
         for chunk in chunks:
             self.db.delete(chunk)
         self.db.commit()
+        app_cache.delete_prefix(f"retrieval:{document.user_id}:")
 
     def update_document_index(self, document: UploadedDocument) -> list[DocumentChunk]:
         return self.index_document(document)
@@ -128,32 +131,50 @@ class RAGRetrievalService:
         query: str,
         top_k: int | None = None,
         hybrid: bool = True,
+        document_ids: list[str] | None = None,
     ) -> RetrievalResponse:
+        normalized_ids = sorted(document_ids or [])
+        cache_key = f"retrieval:{user.id}:{query}:{top_k}:{hybrid}:{','.join(normalized_ids)}"
+        cached = app_cache.get(cache_key)
+        if cached:
+            return cached
+
         k = top_k or settings.RAG_TOP_K
+        allowed_document_ids = {uuid.UUID(item) for item in normalized_ids} if normalized_ids else set()
         results = (
-            self.vector_store.hybrid_similarity_search(user_id=user.id, query=query, top_k=k)
+            self.vector_store.hybrid_similarity_search(user_id=user.id, query=query, top_k=max(k, 6))
             if hybrid
-            else self.vector_store.semantic_similarity_search(user_id=user.id, query=query, top_k=k)
+            else self.vector_store.semantic_similarity_search(user_id=user.id, query=query, top_k=max(k, 6))
         )
 
         retrieved_chunks: list[RetrievedChunk] = []
         context_sections: list[str] = []
+        chunk_lookup: dict[tuple[uuid.UUID, int], DocumentChunk] = {}
+
+        raw_document_ids = []
+        for result in results:
+            raw_document_id = uuid.UUID(result.metadata["document_id"])
+            if allowed_document_ids and raw_document_id not in allowed_document_ids:
+                continue
+            raw_document_ids.append(raw_document_id)
+
+        unique_document_ids = sorted(set(raw_document_ids), key=lambda item: str(item))
+        documents = {
+            document.id: document
+            for document in self.document_repository.list_by_ids(user.id, unique_document_ids)
+        }
+        for chunk in self.chunk_repository.list_by_documents(unique_document_ids):
+            chunk_lookup[(chunk.document_id, chunk.chunk_index)] = chunk
 
         for result in results:
             document_id = uuid.UUID(result.metadata["document_id"])
-            chunk_index = int(result.metadata["chunk_index"])
-            db_document = self.document_repository.get_by_user(document_id, user.id)
+            if allowed_document_ids and document_id not in allowed_document_ids:
+                continue
+            db_document = documents.get(document_id)
             if not db_document:
                 continue
-
-            chunk = next(
-                (
-                    item
-                    for item in self.chunk_repository.list_by_document(document_id)
-                    if item.chunk_index == chunk_index
-                ),
-                None,
-            )
+            chunk_index = int(result.metadata["chunk_index"])
+            chunk = chunk_lookup.get((document_id, chunk_index))
             if not chunk:
                 continue
 
@@ -175,45 +196,14 @@ class RAGRetrievalService:
             context_sections.append(
                 f"[{db_document.title} | page {chunk.page_number or 1} | chunk {chunk.chunk_index}]\n{chunk.content}"
             )
+            if len(retrieved_chunks) >= k:
+                break
 
-        return RetrievalResponse(
+        response = RetrievalResponse(
             query=query,
             top_k=k,
             chunks=retrieved_chunks,
             context="\n\n".join(context_sections),
         )
-
-
-class RAGAnswerService:
-    def __init__(self, db: Session) -> None:
-        self.retrieval_service = RAGRetrievalService(db)
-
-    def answer_query(
-        self,
-        *,
-        user: User,
-        query: str,
-        top_k: int | None = None,
-        hybrid: bool = True,
-    ) -> dict:
-        retrieval = self.retrieval_service.retrieve(
-            user=user,
-            query=query,
-            top_k=top_k,
-            hybrid=hybrid,
-        )
-        if not retrieval.chunks:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No relevant indexed chunks were found for this query.",
-            )
-
-        prompt = build_rag_prompt(query=query, context=retrieval.context)
-        answer = get_llm_gateway().generate(prompt)
-        return {
-            "query": query,
-            "answer": answer,
-            "context": retrieval.context,
-            "chunks": retrieval.chunks,
-            "prompt": prompt,
-        }
+        app_cache.set(cache_key, response, ttl_seconds=45)
+        return response

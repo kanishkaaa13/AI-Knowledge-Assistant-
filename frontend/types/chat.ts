@@ -15,6 +15,7 @@ export interface ConversationPreview {
   summary: string | null;
   updatedAt: string;
   createdAt: string;
+  isFavorite: boolean;
   messageCount: number;
   lastMessagePreview?: string | null;
 }
@@ -34,4 +35,10 @@ export interface AssistantSettings {
 export interface ConversationGroup {
   label: string;
   conversations: ConversationPreview[];
+}
+
+export interface AssistantWorkspaceState {
+  selectedDocumentIds: string[];
+  suggestedPrompts: string[];
+  generatedSummary: string | null;
 }

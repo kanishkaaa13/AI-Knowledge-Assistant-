@@ -14,6 +14,7 @@ class UploadedDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         Index("ix_uploaded_documents_user_id_updated_at", "user_id", "updated_at"),
         Index("ix_uploaded_documents_user_id_status", "user_id", "status"),
+        Index("ix_uploaded_documents_user_id_is_favorite", "user_id", "is_favorite"),
         UniqueConstraint("user_id", "checksum", name="uq_uploaded_documents_user_checksum"),
     )
 
@@ -34,6 +35,10 @@ class UploadedDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="uploaded", index=True)
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tags: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_favorite: Mapped[bool] = mapped_column(default=False, nullable=False, index=True)
+    processing_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="documents")
     chunks: Mapped[list["DocumentChunk"]] = relationship(

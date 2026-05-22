@@ -3,7 +3,9 @@
 import * as React from "react";
 import {
   Clock3,
+  Download,
   Edit3,
+  Heart,
   MessageSquarePlus,
   MoreHorizontal,
   Search,
@@ -20,6 +22,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useVirtualList } from "@/hooks/use-virtual-list";
 import { cn } from "@/lib/utils";
 import type { ConversationGroup } from "@/types/chat";
 
@@ -48,6 +51,8 @@ export function ChatSidebar({
   isLoading,
   onCreateConversation,
   onDeleteConversation,
+  onExportConversation,
+  onFavoriteConversation,
   onHistorySearchChange,
   onRenameConversation,
   onSelectConversation
@@ -58,6 +63,8 @@ export function ChatSidebar({
   isLoading: boolean;
   onCreateConversation: () => void;
   onDeleteConversation: (conversationId: string) => Promise<void>;
+  onExportConversation: (conversationId: string) => Promise<void>;
+  onFavoriteConversation: (conversationId: string, favorite: boolean) => Promise<void>;
   onHistorySearchChange: (value: string) => void;
   onRenameConversation: (conversationId: string, title: string) => Promise<void>;
   onSelectConversation: (conversationId: string) => void;
@@ -67,7 +74,12 @@ export function ChatSidebar({
     title: string;
   } | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
-  const hasConversations = groupedConversations.some((group) => group.conversations.length > 0);
+  const flattened = groupedConversations.flatMap((group) => group.conversations);
+  const hasConversations = flattened.length > 0;
+  const { containerRef, offsetY, totalHeight, visibleItems } = useVirtualList({
+    items: flattened,
+    itemHeight: 112
+  });
 
   async function handleRenameSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -110,7 +122,7 @@ export function ChatSidebar({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div ref={containerRef} className="flex-1 overflow-y-auto p-4">
           {isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, index) => (
@@ -129,90 +141,88 @@ export function ChatSidebar({
           ) : null}
 
           {!isLoading ? (
-            <div className="space-y-5">
-              {groupedConversations.map((group) => (
-                <section key={group.label} className="space-y-2">
-                  <p className="px-2 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    {group.label}
-                  </p>
+            <div style={{ height: totalHeight, position: "relative" }}>
+              <div style={{ transform: `translateY(${offsetY}px)` }} className="space-y-2">
+                {visibleItems.map((conversation) => {
+                  const active = conversation.id === activeConversationId;
 
-                  <div className="space-y-2">
-                    {group.conversations.map((conversation) => {
-                      const active = conversation.id === activeConversationId;
-
-                      return (
-                        <div
-                          key={conversation.id}
-                          className={cn(
-                            "group rounded-3xl border p-4 transition",
-                            active
-                              ? "border-primary/40 bg-primary/10 shadow-lg shadow-primary/5"
-                              : "border-transparent bg-transparent hover:border-border/60 hover:bg-secondary/60"
-                          )}
+                  return (
+                    <div
+                      key={conversation.id}
+                      className={cn(
+                        "group rounded-3xl border p-4 transition",
+                        active
+                          ? "border-primary/40 bg-primary/10 shadow-lg shadow-primary/5"
+                          : "border-transparent bg-transparent hover:border-border/60 hover:bg-secondary/60"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <button
+                          className="min-w-0 flex-1 text-left"
+                          onClick={() => onSelectConversation(conversation.id)}
+                          type="button"
                         >
-                          <div className="flex items-start gap-3">
-                            <button
-                              className="min-w-0 flex-1 text-left"
-                              onClick={() => onSelectConversation(conversation.id)}
-                              type="button"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <p className="line-clamp-1 text-sm font-medium">{conversation.title}</p>
-                                <span className="shrink-0 text-[11px] text-muted-foreground">
-                                  {formatRelativeTime(conversation.updatedAt)}
-                                </span>
-                              </div>
-                              <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                                {conversation.lastMessagePreview ??
-                                  conversation.summary ??
-                                  "Open this conversation to continue chatting."}
-                              </p>
-                            </button>
-
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  className="mt-1 h-8 w-8 rounded-full opacity-0 transition group-hover:opacity-100"
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={(event) => event.stopPropagation()}
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-40">
-                                <DropdownMenuItem
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    setRenameTarget({
-                                      id: conversation.id,
-                                      title: conversation.title
-                                    });
-                                    setRenameValue(conversation.title);
-                                  }}
-                                >
-                                  <Edit3 className="mr-2 h-4 w-4" />
-                                  Rename
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    void onDeleteConversation(conversation.id);
-                                  }}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="line-clamp-1 text-sm font-medium">{conversation.title}</p>
+                            <span className="shrink-0 text-[11px] text-muted-foreground">
+                              {formatRelativeTime(conversation.updatedAt)}
+                            </span>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
-              ))}
+                          <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                            {conversation.lastMessagePreview ??
+                              conversation.summary ??
+                              "Open this conversation to continue chatting."}
+                          </p>
+                        </button>
+
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              className="mt-1 h-8 w-8 rounded-full opacity-0 transition group-hover:opacity-100"
+                              size="icon"
+                              variant="ghost"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem
+                              onClick={() => void onFavoriteConversation(conversation.id, !conversation.isFavorite)}
+                            >
+                              <Heart className={`mr-2 h-4 w-4 ${conversation.isFavorite ? "fill-current text-rose-500" : ""}`} />
+                              {conversation.isFavorite ? "Unfavorite" : "Favorite"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setRenameTarget({
+                                  id: conversation.id,
+                                  title: conversation.title
+                                });
+                                setRenameValue(conversation.title);
+                              }}
+                            >
+                              <Edit3 className="mr-2 h-4 w-4" />
+                              Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => void onExportConversation(conversation.id)}>
+                              <Download className="mr-2 h-4 w-4" />
+                              Export
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => void onDeleteConversation(conversation.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ) : null}
         </div>
@@ -224,7 +234,7 @@ export function ChatSidebar({
               Searchable memory
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
-              Reopen past chats, rename them, and keep your knowledge conversations organized.
+              Reopen, favorite, export, and organize your private knowledge conversations.
             </p>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -11,6 +12,7 @@ from app.models.user import User
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationDetail,
+    ConversationFavoriteUpdate,
     ConversationListItem,
     ConversationRename,
 )
@@ -73,6 +75,32 @@ def rename_conversation(
         user=current_user,
         conversation_id=conversation_id,
         title=ensure_present(sanitize_text(payload.title, max_length=255), field_name="title"),
+    )
+
+
+@router.patch("/{conversation_id}/favorite", response_model=ConversationListItem)
+def favorite_conversation(
+    conversation_id: uuid.UUID,
+    payload: ConversationFavoriteUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ConversationListItem:
+    return ChatMemoryService(db).toggle_favorite(
+        user=current_user,
+        conversation_id=conversation_id,
+        is_favorite=payload.is_favorite,
+    )
+
+
+@router.get("/{conversation_id}/export", response_class=PlainTextResponse)
+def export_conversation(
+    conversation_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> str:
+    return ChatMemoryService(db).export_conversation(
+        user=current_user,
+        conversation_id=conversation_id,
     )
 
 

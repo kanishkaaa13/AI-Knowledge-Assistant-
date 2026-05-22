@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from app.schemas.rag import RetrievedChunk
 
 
 class SummaryStat(BaseModel):
@@ -48,3 +50,45 @@ class AnalyticsOverview(BaseModel):
     messages_timeline: list[AnalyticsSeriesPoint]
     recent_uploads: list[RecentUploadItem]
     ai_usage: AIUsageStats
+
+
+class AssistantSummaryRequest(BaseModel):
+    query: str = Field(min_length=3)
+    model: str = "llama3"
+    document_ids: list[str] = Field(default_factory=list)
+
+
+class AssistantSummaryResponse(BaseModel):
+    summary: str
+    context: str
+    chunks: list[RetrievedChunk]
+
+
+class QuizItem(BaseModel):
+    question: str
+    answer: str
+    difficulty: str
+
+
+class AssistantQuizResponse(BaseModel):
+    questions: list[QuizItem]
+    chunks: list[RetrievedChunk]
+    context: str
+
+
+class SuggestedPromptsResponse(BaseModel):
+    prompts: list[str]
+    chunks: list[RetrievedChunk]
+
+
+class SemanticDocumentSearchItem(BaseModel):
+    document_id: str
+    title: str
+    filename: str
+    excerpt: str
+    score: float
+    tags: list[str] = Field(default_factory=list)
+
+
+class SemanticDocumentSearchResponse(BaseModel):
+    results: list[SemanticDocumentSearchItem]

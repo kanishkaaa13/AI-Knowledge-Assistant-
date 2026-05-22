@@ -30,6 +30,7 @@ class AssistantQueryRequest(BaseModel):
     hybrid: bool = True
     model: str = "llama3"
     conversation_id: uuid.UUID | None = None
+    document_ids: list[str] = Field(default_factory=list)
 
 
 class AssistantQueryResponse(BaseModel):

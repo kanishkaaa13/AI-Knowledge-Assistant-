@@ -17,7 +17,17 @@ class ConversationRepository(BaseRepository[Conversation]):
         statement = (
             select(Conversation)
             .where(Conversation.user_id == user_id)
-            .order_by(Conversation.updated_at.desc())
+            .order_by(Conversation.is_favorite.desc(), Conversation.updated_at.desc())
+        )
+        return list(self.db.scalars(statement).all())
+
+    def paginated_by_user(self, user_id: uuid.UUID, *, page: int = 1, page_size: int = 50) -> list[Conversation]:
+        statement = (
+            select(Conversation)
+            .where(Conversation.user_id == user_id)
+            .order_by(Conversation.is_favorite.desc(), Conversation.updated_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
         )
         return list(self.db.scalars(statement).all())
 
@@ -40,7 +50,7 @@ class ConversationRepository(BaseRepository[Conversation]):
                 )
             )
 
-        statement = statement.order_by(Conversation.updated_at.desc())
+        statement = statement.order_by(Conversation.is_favorite.desc(), Conversation.updated_at.desc())
         return list(self.db.scalars(statement).all())
 
     def get_message_count(self, conversation_id: uuid.UUID) -> int:

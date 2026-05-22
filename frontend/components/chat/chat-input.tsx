@@ -1,10 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUp, Sparkles } from "lucide-react";
+import { ArrowUp, Mic, Sparkles, StopCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+
+declare global {
+  interface Window {
+    webkitSpeechRecognition?: any;
+    SpeechRecognition?: any;
+  }
+}
 
 export function ChatInput({
   input,
@@ -18,6 +25,8 @@ export function ChatInput({
   streamResponses: boolean;
 }) {
   const [isSending, setIsSending] = React.useState(false);
+  const [isRecording, setIsRecording] = React.useState(false);
+  const recognitionRef = React.useRef<any>(null);
 
   async function handleSubmit(event?: React.FormEvent) {
     event?.preventDefault();
@@ -31,6 +40,35 @@ export function ChatInput({
     } finally {
       setIsSending(false);
     }
+  }
+
+  function toggleVoiceInput() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      return;
+    }
+
+    if (isRecording) {
+      recognitionRef.current?.stop?.();
+      setIsRecording(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0]?.transcript ?? "")
+        .join(" ");
+      onInputChange(transcript);
+    };
+    recognition.onend = () => setIsRecording(false);
+    recognition.onerror = () => setIsRecording(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsRecording(true);
   }
 
   return (
@@ -58,15 +96,21 @@ export function ChatInput({
                 : "Streaming disabled for instant replies"}
             </div>
 
-            <Button
-              className="rounded-2xl px-5"
-              disabled={!input.trim() || isSending}
-              size="lg"
-              type="submit"
-            >
-              {isSending ? "Thinking..." : "Send"}
-              <ArrowUp className="ml-2 h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button type="button" className="rounded-2xl px-4" variant="secondary" onClick={toggleVoiceInput}>
+                {isRecording ? <StopCircle className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
+                {isRecording ? "Stop" : "Voice"}
+              </Button>
+              <Button
+                className="rounded-2xl px-5"
+                disabled={!input.trim() || isSending}
+                size="lg"
+                type="submit"
+              >
+                {isSending ? "Thinking..." : "Send"}
+                <ArrowUp className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </form>

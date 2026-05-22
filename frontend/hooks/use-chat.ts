@@ -7,15 +7,24 @@ import { toast } from "sonner";
 import {
   createConversation,
   deleteConversation,
+  exportConversation,
+  favoriteConversation,
+  generateAssistantQuiz,
   getConversation,
+  getSuggestedPrompts,
   listConversations,
   queryAssistant,
-  renameConversation
+  renameConversation,
+  semanticDocumentSearch,
+  summarizeAssistantKnowledge
 } from "@/lib/api";
 import { streamAssistantChat } from "@/lib/chat-stream";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type {
+  AssistantQuizItem,
   ConversationDetail as ApiConversationDetail,
   ConversationListItem as ApiConversationListItem,
+  SemanticDocumentSearchItem,
   StoredMessage
 } from "@/types/api";
 import type {
@@ -61,6 +70,7 @@ function mapConversationPreview(conversation: ApiConversationListItem): Conversa
     summary: conversation.summary,
     updatedAt: conversation.updated_at,
     createdAt: conversation.created_at,
+    isFavorite: conversation.is_favorite,
     messageCount: conversation.message_count,
     lastMessagePreview: conversation.last_message_preview
   };
@@ -74,6 +84,7 @@ function mapConversationDetail(conversation: ApiConversationDetail): Conversatio
     summary: conversation.summary,
     createdAt: conversation.created_at,
     updatedAt: conversation.updated_at,
+    isFavorite: conversation.is_favorite,
     messageCount: conversation.messages.length,
     lastMessagePreview: conversation.messages.at(-1)?.content ?? conversation.summary,
     messages: conversation.messages.map(mapMessage)
@@ -81,34 +92,10 @@ function mapConversationDetail(conversation: ApiConversationDetail): Conversatio
 }
 
 function groupConversations(conversations: ConversationPreview[]): ConversationGroup[] {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const yesterday = today - 24 * 60 * 60 * 1000;
-  const lastWeek = today - 7 * 24 * 60 * 60 * 1000;
-  const lastMonth = today - 30 * 24 * 60 * 60 * 1000;
-
   const groups: Record<string, ConversationPreview[]> = {
-    Today: [],
-    Yesterday: [],
-    "Last 7 days": [],
-    "Last 30 days": [],
-    Older: []
+    Favorites: conversations.filter((item) => item.isFavorite),
+    Recent: conversations.filter((item) => !item.isFavorite)
   };
-
-  for (const conversation of conversations) {
-    const updatedAt = new Date(conversation.updatedAt).getTime();
-    if (updatedAt >= today) {
-      groups.Today.push(conversation);
-    } else if (updatedAt >= yesterday) {
-      groups.Yesterday.push(conversation);
-    } else if (updatedAt >= lastWeek) {
-      groups["Last 7 days"].push(conversation);
-    } else if (updatedAt >= lastMonth) {
-      groups["Last 30 days"].push(conversation);
-    } else {
-      groups.Older.push(conversation);
-    }
-  }
 
   return Object.entries(groups)
     .filter(([, items]) => items.length > 0)
@@ -124,12 +111,16 @@ export function useChat() {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [settings, setSettings] = React.useState(starterSettings);
-  const deferredSearch = React.useDeferredValue(historySearch);
+  const [selectedDocumentIds, setSelectedDocumentIds] = React.useState<string[]>([]);
+  const [generatedSummary, setGeneratedSummary] = React.useState<string | null>(null);
+  const [quiz, setQuiz] = React.useState<AssistantQuizItem[]>([]);
+  const [searchResults, setSearchResults] = React.useState<SemanticDocumentSearchItem[]>([]);
+  const debouncedSearch = useDebouncedValue(historySearch, 250);
 
   const conversationsQuery = useQuery({
-    queryKey: ["conversations", deferredSearch],
+    queryKey: ["conversations", debouncedSearch],
     queryFn: async () => {
-      const data = await listConversations(deferredSearch || undefined);
+      const data = await listConversations(debouncedSearch || undefined);
       return data.map(mapConversationPreview);
     }
   });
@@ -141,6 +132,26 @@ export function useChat() {
       return mapConversationDetail(data);
     },
     enabled: Boolean(activeConversationId)
+  });
+
+  const activeConversation = activeConversationQuery.data;
+  const latestReferenceText =
+    input.trim() ||
+    activeConversation?.messages.at(-1)?.content ||
+    activeConversation?.summary ||
+    "Summarize my selected documents";
+
+  const suggestedPromptsQuery = useQuery({
+    queryKey: ["assistant-suggested-prompts", latestReferenceText, settings.model, selectedDocumentIds],
+    queryFn: async () => {
+      const result = await getSuggestedPrompts({
+        query: latestReferenceText,
+        model: settings.model,
+        document_ids: selectedDocumentIds
+      });
+      return result.prompts;
+    },
+    enabled: Boolean(latestReferenceText)
   });
 
   React.useEffect(() => {
@@ -161,9 +172,6 @@ export function useChat() {
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
       await queryClient.invalidateQueries({ queryKey: ["conversation", variables.conversationId] });
       toast.success("Conversation renamed");
-    },
-    onError(error: any) {
-      toast.error(error?.message || "Unable to rename the conversation.");
     }
   });
 
@@ -179,9 +187,15 @@ export function useChat() {
       queryClient.removeQueries({ queryKey: ["conversation", conversationId] });
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
       toast.success("Conversation deleted");
-    },
-    onError(error: any) {
-      toast.error(error?.message || "Unable to delete the conversation.");
+    }
+  });
+
+  const favoriteMutation = useMutation({
+    mutationFn: ({ conversationId, favorite }: { conversationId: string; favorite: boolean }) =>
+      favoriteConversation(conversationId, favorite),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      await queryClient.invalidateQueries({ queryKey: ["conversation", activeConversationId] });
     }
   });
 
@@ -211,6 +225,17 @@ export function useChat() {
     });
   }, []);
 
+  const exportCurrentConversation = React.useCallback(async (conversationId: string) => {
+    const content = await exportConversation(conversationId);
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "conversation-export.md";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
   const updateSettings = React.useCallback((nextSettings: AssistantSettings) => {
     setSettings(nextSettings);
   }, []);
@@ -228,6 +253,53 @@ export function useChat() {
     },
     [deleteMutation]
   );
+
+  const markFavoriteConversation = React.useCallback(
+    async (conversationId: string, favorite: boolean) => {
+      await favoriteMutation.mutateAsync({ conversationId, favorite });
+    },
+    [favoriteMutation]
+  );
+
+  const toolMutation = useMutation({
+    mutationFn: async (tool: "summary" | "quiz" | "search") => {
+      const basePayload = {
+        query: latestReferenceText,
+        model: settings.model,
+        document_ids: selectedDocumentIds
+      };
+      if (tool === "summary") {
+        return {
+          tool,
+          result: await summarizeAssistantKnowledge(basePayload)
+        };
+      }
+      if (tool === "quiz") {
+        return {
+          tool,
+          result: await generateAssistantQuiz(basePayload)
+        };
+      }
+      return {
+        tool,
+        result: await semanticDocumentSearch(basePayload)
+      };
+    },
+    onSuccess(data) {
+      if (data.tool === "summary") {
+        setGeneratedSummary(data.result.summary);
+      }
+      if (data.tool === "quiz") {
+        setQuiz(data.result.questions);
+      }
+      if (data.tool === "search") {
+        setSearchResults(data.result.results);
+      }
+    },
+    onError(error: any) {
+      toast.error(error?.response?.data?.detail ?? "Unable to run assistant tool.");
+    }
+  });
 
   const sendMessage = React.useCallback(async () => {
     const prompt = input.trim();
@@ -264,6 +336,7 @@ export function useChat() {
         summary: prompt,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        isFavorite: false,
         messageCount: 0,
         lastMessagePreview: prompt,
         messages: []
@@ -311,20 +384,10 @@ export function useChat() {
             query: prompt,
             model: settings.model,
             hybrid: true,
-            conversation_id: conversationId
+            conversation_id: conversationId,
+            document_ids: selectedDocumentIds
           },
           {
-            onContext(data) {
-              if (!data?.conversation_id) {
-                return;
-              }
-
-              updateConversationCache(data.conversation_id, (current) => ({
-                ...(current as ConversationDetail),
-                id: data.conversation_id,
-                title: data.conversation_title ?? current?.title ?? "New conversation"
-              }));
-            },
             onToken(token) {
               updateAssistantMessage((current) => current + token);
             },
@@ -346,16 +409,10 @@ export function useChat() {
           query: prompt,
           model: settings.model,
           hybrid: true,
-          conversation_id: conversationId
+          conversation_id: conversationId,
+          document_ids: selectedDocumentIds
         });
         updateAssistantMessage(() => response.answer, true);
-        updateConversationCache(conversationId, (current) => ({
-          ...(current as ConversationDetail),
-          title: response.conversation_title,
-          summary: response.answer,
-          lastMessagePreview: response.answer,
-          updatedAt: new Date().toISOString()
-        }));
       }
 
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
@@ -368,32 +425,45 @@ export function useChat() {
     activeConversationId,
     input,
     queryClient,
+    selectedDocumentIds,
     settings.model,
     settings.streamResponses,
     updateConversationCache
   ]);
 
   return {
-    conversations: conversationsQuery.data ?? [],
     groupedConversations: groupConversations(conversationsQuery.data ?? []),
-    activeConversation: activeConversationQuery.data,
+    activeConversation,
     activeConversationId,
+    generatedSummary,
     historySearch,
     input,
     isConversationLoading: activeConversationQuery.isLoading,
     isHistoryLoading: conversationsQuery.isLoading,
     isSettingsOpen,
     isSidebarOpen,
+    isWorkingTools: toolMutation.isPending,
+    quiz,
+    searchResults,
+    selectedDocumentIds,
     settings,
+    suggestedPrompts: suggestedPromptsQuery.data ?? [],
     setHistorySearch,
     setInput,
     setIsSidebarOpen,
     setIsSettingsOpen,
+    setSelectedDocumentIds,
     createConversation: createConversationDraft,
     deleteConversation: removeConversation,
+    exportConversation: exportCurrentConversation,
+    favoriteConversation: markFavoriteConversation,
+    generateQuiz: async () => toolMutation.mutateAsync("quiz").then(() => undefined),
+    generateSummary: async () => toolMutation.mutateAsync("summary").then(() => undefined),
     renameConversation: renameStoredConversation,
+    runSemanticSearch: async () => toolMutation.mutateAsync("search").then(() => undefined),
     selectConversation,
     updateSettings,
+    useSuggestedPrompt: setInput,
     sendMessage
   };
 }

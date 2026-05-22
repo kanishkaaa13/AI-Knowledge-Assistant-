@@ -19,6 +19,16 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         )
         return list(self.db.scalars(statement).all())
 
+    def list_by_documents(self, document_ids: list[uuid.UUID]) -> list[DocumentChunk]:
+        if not document_ids:
+            return []
+        statement = (
+            select(DocumentChunk)
+            .where(DocumentChunk.document_id.in_(document_ids))
+            .order_by(DocumentChunk.document_id.asc(), DocumentChunk.chunk_index.asc())
+        )
+        return list(self.db.scalars(statement).all())
+
     def bulk_create(self, chunks: list[dict]) -> list[DocumentChunk]:
         entities = [DocumentChunk(**chunk) for chunk in chunks]
         self.db.add_all(entities)

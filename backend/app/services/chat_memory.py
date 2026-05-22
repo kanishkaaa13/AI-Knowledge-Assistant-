@@ -100,6 +100,17 @@ class ChatMemoryService:
         updated = self.conversations.update(conversation, title=title.strip())
         return self._build_list_item(updated)
 
+    def toggle_favorite(
+        self,
+        *,
+        user: User,
+        conversation_id: uuid.UUID,
+        is_favorite: bool,
+    ) -> ConversationListItem:
+        conversation = self._get_owned_conversation(user=user, conversation_id=conversation_id)
+        updated = self.conversations.update(conversation, is_favorite=is_favorite)
+        return self._build_list_item(updated)
+
     def delete_conversation(self, *, user: User, conversation_id: uuid.UUID) -> None:
         conversation = self._get_owned_conversation(user=user, conversation_id=conversation_id)
         self.conversations.delete(conversation)
@@ -155,6 +166,16 @@ class ChatMemoryService:
 
         compact = re.sub(r"\s+", " ", text).strip()
         return compact if len(compact) <= limit else f"{compact[: limit - 3].rstrip()}..."
+
+    def export_conversation(self, *, user: User, conversation_id: uuid.UUID) -> str:
+        conversation = self._get_owned_conversation(user=user, conversation_id=conversation_id)
+        messages = self.messages.list_by_conversation(conversation.id)
+        lines = [f"# {conversation.title}", ""]
+        for message in messages:
+            lines.append(f"## {message.role.title()}")
+            lines.append(message.content)
+            lines.append("")
+        return "\n".join(lines).strip()
 
     def _build_list_item(self, conversation: Conversation) -> ConversationListItem:
         last_message = self.messages.get_last_message(conversation.id)

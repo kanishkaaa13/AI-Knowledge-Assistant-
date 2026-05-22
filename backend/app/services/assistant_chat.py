@@ -22,12 +22,14 @@ class AssistantChatService:
         model: str,
         top_k: int | None = None,
         hybrid: bool = True,
+        document_ids: list[str] | None = None,
     ) -> dict:
         retrieval = self.retrieval_service.retrieve(
             user=user,
             query=query,
             top_k=top_k,
             hybrid=hybrid,
+            document_ids=document_ids,
         )
 
         if not retrieval.chunks:
@@ -63,12 +65,14 @@ class AssistantChatService:
         model: str,
         top_k: int | None = None,
         hybrid: bool = True,
+        document_ids: list[str] | None = None,
     ) -> AsyncIterator[str]:
         retrieval = self.retrieval_service.retrieve(
             user=user,
             query=query,
             top_k=top_k,
             hybrid=hybrid,
+            document_ids=document_ids,
         )
 
         meta_payload = {

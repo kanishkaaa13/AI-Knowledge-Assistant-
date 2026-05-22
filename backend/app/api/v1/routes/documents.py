@@ -1,7 +1,7 @@
 import uuid
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -12,10 +12,13 @@ from app.db.session import get_db
 from app.models.user import User
 from app.repositories.document import DocumentRepository
 from app.schemas.document import (
+    DocumentListResponse,
+    DocumentMetadataUpdate,
     DocumentPreviewRead,
     UploadedDocumentListItem,
     UploadedDocumentRead,
 )
+from app.services.background_jobs import process_document_ingestion
 from app.services.document_upload import (
     create_document_record,
     delete_document_file,
@@ -28,25 +31,58 @@ from app.services.rag_pipeline import RAGIngestionService
 router = APIRouter()
 
 
-@router.get("", response_model=list[UploadedDocumentListItem])
+def parse_tags(tags: str | None) -> list[str]:
+    if not tags:
+        return []
+    return [item.strip() for item in tags.split(",") if item.strip()]
+
+
+@router.get("", response_model=DocumentListResponse)
 async def list_documents(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=12, ge=1, le=50),
+    search: str | None = Query(default=None),
+    tag: str | None = Query(default=None),
+    favorites_only: bool = Query(default=False),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> list[UploadedDocumentListItem]:
+) -> DocumentListResponse:
     repository = DocumentRepository(db)
-    documents = repository.list_by_user(current_user.id)
-    return [
-        UploadedDocumentListItem(
-            **UploadedDocumentRead.model_validate(document).model_dump(),
-            preview_text=preview_text(document.extracted_text),
-        )
-        for document in documents
-    ]
+    safe_search = sanitize_text(search, max_length=255) if search else None
+    safe_tag = sanitize_text(tag, max_length=64) if tag else None
+    documents = repository.list_by_user(
+        current_user.id,
+        page=page,
+        page_size=page_size,
+        search=safe_search,
+        tag=safe_tag,
+        favorites_only=favorites_only,
+    )
+    total = repository.count_filtered_by_user(
+        current_user.id,
+        search=safe_search,
+        tag=safe_tag,
+        favorites_only=favorites_only,
+    )
+    return DocumentListResponse(
+        items=[
+            UploadedDocumentListItem(
+                **UploadedDocumentRead.model_validate(document).model_dump(),
+                preview_text=preview_text(document.extracted_text),
+                parsed_tags=parse_tags(document.tags),
+            )
+            for document in documents
+        ],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.post("/upload", response_model=UploadedDocumentRead, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     request: Request,
+    background_tasks: BackgroundTasks,
     title: str = Form(...),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -66,7 +102,11 @@ async def upload_document(
         title=safe_title or upload_data.safe_file_name,
         upload_data=upload_data,
     )
-    RAGIngestionService(db).index_document(document)
+    document.status = "queued"
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    background_tasks.add_task(process_document_ingestion, str(document.id))
     return UploadedDocumentRead.model_validate(document)
 
 
@@ -80,6 +120,28 @@ async def get_document(
     document = repository.get_by_user(document_id, current_user.id)
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    return UploadedDocumentRead.model_validate(document)
+
+
+@router.patch("/{document_id}/metadata", response_model=UploadedDocumentRead)
+async def update_document_metadata(
+    document_id: uuid.UUID,
+    payload: DocumentMetadataUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UploadedDocumentRead:
+    repository = DocumentRepository(db)
+    document = repository.get_by_user(document_id, current_user.id)
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+
+    cleaned_tags = sorted({sanitize_text(tag, max_length=32).lower() for tag in payload.tags if tag.strip()})
+    document.tags = ",".join(cleaned_tags) if cleaned_tags else None
+    if payload.is_favorite is not None:
+        document.is_favorite = payload.is_favorite
+    db.add(document)
+    db.commit()
+    db.refresh(document)
     return UploadedDocumentRead.model_validate(document)
 
 
@@ -104,6 +166,9 @@ async def get_document_preview(
         page_count=document.page_count,
         word_count=document.word_count,
         preview_text=preview_text(document.extracted_text),
+        ai_summary=document.ai_summary,
+        parsed_tags=parse_tags(document.tags),
+        is_favorite=document.is_favorite,
     )
 
 
@@ -122,10 +187,23 @@ async def download_document(
     return StreamingResponse(
         BytesIO(file_bytes),
         media_type=document.mime_type or "application/octet-stream",
-        headers={
-            "Content-Disposition": f'attachment; filename="{document.file_name}"'
-        },
+        headers={"Content-Disposition": f'attachment; filename="{document.file_name}"'},
     )
+
+
+@router.post("/{document_id}/reindex", response_model=UploadedDocumentRead)
+async def reindex_document(
+    document_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UploadedDocumentRead:
+    repository = DocumentRepository(db)
+    document = repository.get_by_user(document_id, current_user.id)
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+
+    RAGIngestionService(db).update_document_index(document)
+    return UploadedDocumentRead.model_validate(document)
 
 
 @router.delete("/{document_id}")

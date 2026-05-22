@@ -7,13 +7,21 @@ import {
   deleteDocument,
   getDocumentPreview,
   listDocuments,
+  reindexDocument,
+  updateDocumentMetadata,
   uploadDocument
 } from "@/lib/api";
 
-export function useDocuments() {
+export function useDocuments(params?: {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  tag?: string;
+  favorites_only?: boolean;
+}) {
   return useQuery({
-    queryKey: ["documents"],
-    queryFn: listDocuments
+    queryKey: ["documents", params],
+    queryFn: () => listDocuments(params)
   });
 }
 
@@ -32,7 +40,7 @@ export function useUploadDocument() {
     }) => uploadDocument(file, title, onProgress),
     onSuccess() {
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
-      toast.success("Document uploaded successfully.");
+      toast.success("Document queued for indexing.");
     },
     onError(error: any) {
       toast.error(error?.response?.data?.detail ?? "Upload failed.");
@@ -51,6 +59,30 @@ export function useDeleteDocument() {
     },
     onError(error: any) {
       toast.error(error?.response?.data?.detail ?? "Unable to delete document.");
+    }
+  });
+}
+
+export function useUpdateDocumentMetadata() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ documentId, tags, is_favorite }: { documentId: string; tags: string[]; is_favorite?: boolean }) =>
+      updateDocumentMetadata(documentId, { tags, is_favorite }),
+    onSuccess() {
+      void queryClient.invalidateQueries({ queryKey: ["documents"] });
+    }
+  });
+}
+
+export function useReindexDocument() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: reindexDocument,
+    onSuccess() {
+      void queryClient.invalidateQueries({ queryKey: ["documents"] });
+      toast.success("Re-indexing started.");
     }
   });
 }

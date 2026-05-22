@@ -13,6 +13,7 @@ class Conversation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "conversations"
     __table_args__ = (
         Index("ix_conversations_user_id_updated_at", "user_id", "updated_at"),
+        Index("ix_conversations_user_id_is_favorite", "user_id", "is_favorite"),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -23,6 +24,7 @@ class Conversation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_favorite: Mapped[bool] = mapped_column(default=False, nullable=False, index=True)
 
     user: Mapped["User"] = relationship(back_populates="conversations")
     messages: Mapped[list["Message"]] = relationship(

@@ -84,9 +84,21 @@ export interface UploadedDocument {
   word_count: number | null;
   status: string;
   extracted_text: string | null;
+  ai_summary: string | null;
+  tags: string | null;
+  parsed_tags: string[];
+  is_favorite: boolean;
+  processing_error: string | null;
   created_at: string;
   updated_at: string;
   preview_text?: string | null;
+}
+
+export interface DocumentListResponse {
+  items: UploadedDocument[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 export interface DocumentPreview {
@@ -99,6 +111,9 @@ export interface DocumentPreview {
   page_count: number | null;
   word_count: number | null;
   preview_text: string | null;
+  ai_summary: string | null;
+  parsed_tags: string[];
+  is_favorite: boolean;
 }
 
 export interface StoredMessage {
@@ -116,6 +131,7 @@ export interface ConversationListItem {
   user_id: string;
   title: string;
   summary: string | null;
+  is_favorite: boolean;
   message_count: number;
   last_message_preview: string | null;
   created_at: string;
@@ -127,7 +143,37 @@ export interface ConversationDetail {
   user_id: string;
   title: string;
   summary: string | null;
+  is_favorite: boolean;
   created_at: string;
   updated_at: string;
   messages: StoredMessage[];
+}
+
+export interface AssistantSummaryResponse {
+  summary: string;
+  context: string;
+}
+
+export interface AssistantQuizItem {
+  question: string;
+  answer: string;
+  difficulty: string;
+}
+
+export interface AssistantQuizResponse {
+  questions: AssistantQuizItem[];
+  context: string;
+}
+
+export interface SuggestedPromptsResponse {
+  prompts: string[];
+}
+
+export interface SemanticDocumentSearchItem {
+  document_id: string;
+  title: string;
+  filename: string;
+  excerpt: string;
+  score: number;
+  tags: string[];
 }

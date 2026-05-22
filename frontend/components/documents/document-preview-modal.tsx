@@ -68,6 +68,25 @@ export function DocumentPreviewModal({
               {preview.page_count ? <span>{preview.page_count} pages</span> : null}
             </div>
 
+            {preview.ai_summary ? (
+              <div className="rounded-3xl border border-border/60 bg-card/70 p-5">
+                <p className="text-sm font-medium">AI summary</p>
+                <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">
+                  {preview.ai_summary}
+                </p>
+              </div>
+            ) : null}
+
+            {preview.parsed_tags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {preview.parsed_tags.map((tag) => (
+                  <span key={tag} className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
             {isPdf && downloadUrl ? (
               <div className="overflow-hidden rounded-3xl border border-border/60">
                 <iframe className="h-[420px] w-full" src={downloadUrl} title={preview.title} />

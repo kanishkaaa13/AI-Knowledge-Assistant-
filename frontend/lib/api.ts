@@ -3,11 +3,16 @@ import {
   AuthFormValues,
   AuthResponse,
   AnalyticsOverview,
+  AssistantQuizResponse,
+  AssistantSummaryResponse,
   ConversationDetail,
   ConversationListItem,
+  DocumentListResponse,
   DocumentPreview,
   DashboardSummary,
   HealthResponse,
+  SemanticDocumentSearchItem,
+  SuggestedPromptsResponse,
   UploadedDocument,
   User
 } from "@/types/api";
@@ -53,8 +58,16 @@ export async function refreshSession() {
   return data;
 }
 
-export async function listDocuments() {
-  const { data } = await apiClient.get<UploadedDocument[]>("/documents");
+export async function listDocuments(params?: {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  tag?: string;
+  favorites_only?: boolean;
+}) {
+  const { data } = await apiClient.get<DocumentListResponse>("/documents", {
+    params
+  });
   return data;
 }
 
@@ -92,6 +105,19 @@ export async function getDocumentPreview(documentId: string) {
   return data;
 }
 
+export async function updateDocumentMetadata(
+  documentId: string,
+  payload: { tags: string[]; is_favorite?: boolean }
+) {
+  const { data } = await apiClient.patch<UploadedDocument>(`/documents/${documentId}/metadata`, payload);
+  return data;
+}
+
+export async function reindexDocument(documentId: string) {
+  const { data } = await apiClient.post<UploadedDocument>(`/documents/${documentId}/reindex`);
+  return data;
+}
+
 export async function listConversations(search?: string) {
   const { data } = await apiClient.get<ConversationListItem[]>("/conversations", {
     params: search?.trim() ? { search } : undefined
@@ -119,6 +145,20 @@ export async function renameConversation(conversationId: string, title: string) 
   return data;
 }
 
+export async function favoriteConversation(conversationId: string, is_favorite: boolean) {
+  const { data } = await apiClient.patch<ConversationListItem>(`/conversations/${conversationId}/favorite`, {
+    is_favorite
+  });
+  return data;
+}
+
+export async function exportConversation(conversationId: string) {
+  const { data } = await apiClient.get<string>(`/conversations/${conversationId}/export`, {
+    responseType: "text" as const
+  });
+  return data;
+}
+
 export async function deleteConversation(conversationId: string) {
   const { data } = await apiClient.delete<{ message: string }>(`/conversations/${conversationId}`);
   return data;
@@ -130,6 +170,7 @@ export async function queryAssistant(payload: {
   top_k?: number;
   hybrid?: boolean;
   conversation_id?: string;
+  document_ids?: string[];
 }) {
   const { data } = await apiClient.post<{
     query: string;
@@ -141,5 +182,44 @@ export async function queryAssistant(payload: {
     conversation_id: string;
     conversation_title: string;
   }>("/assistant/query", payload);
+  return data;
+}
+
+export async function summarizeAssistantKnowledge(payload: {
+  query: string;
+  model: "llama3" | "mistral";
+  document_ids?: string[];
+}) {
+  const { data } = await apiClient.post<AssistantSummaryResponse>("/assistant/summaries", payload);
+  return data;
+}
+
+export async function generateAssistantQuiz(payload: {
+  query: string;
+  model: "llama3" | "mistral";
+  document_ids?: string[];
+}) {
+  const { data } = await apiClient.post<AssistantQuizResponse>("/assistant/quiz", payload);
+  return data;
+}
+
+export async function getSuggestedPrompts(payload: {
+  query: string;
+  model: "llama3" | "mistral";
+  document_ids?: string[];
+}) {
+  const { data } = await apiClient.post<SuggestedPromptsResponse>("/assistant/suggested-prompts", payload);
+  return data;
+}
+
+export async function semanticDocumentSearch(payload: {
+  query: string;
+  model: "llama3" | "mistral";
+  document_ids?: string[];
+}) {
+  const { data } = await apiClient.post<{ results: SemanticDocumentSearchItem[] }>(
+    "/assistant/document-search",
+    payload
+  );
   return data;
 }

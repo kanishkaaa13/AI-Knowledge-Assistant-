@@ -17,6 +17,10 @@ class UploadedDocumentBase(ORMBaseSchema):
     word_count: int | None = Field(default=None, ge=0)
     status: str = Field(default="uploaded", min_length=1, max_length=50)
     extracted_text: str | None = None
+    ai_summary: str | None = None
+    tags: str | None = None
+    is_favorite: bool = False
+    processing_error: str | None = None
 
 
 class UploadedDocumentCreate(UploadedDocumentBase):
@@ -27,6 +31,9 @@ class UploadedDocumentUpdate(ORMBaseSchema):
     title: str | None = Field(default=None, min_length=1, max_length=255)
     status: str | None = Field(default=None, min_length=1, max_length=50)
     extracted_text: str | None = None
+    ai_summary: str | None = None
+    tags: str | None = None
+    is_favorite: bool | None = None
 
 
 class UploadedDocumentRead(UploadedDocumentBase, TimestampSchema):
@@ -35,6 +42,7 @@ class UploadedDocumentRead(UploadedDocumentBase, TimestampSchema):
 
 class UploadedDocumentListItem(UploadedDocumentRead):
     preview_text: str | None = None
+    parsed_tags: list[str] = Field(default_factory=list)
 
 
 class DocumentPreviewRead(ORMBaseSchema):
@@ -47,6 +55,9 @@ class DocumentPreviewRead(ORMBaseSchema):
     page_count: int | None = None
     word_count: int | None = None
     preview_text: str | None = None
+    ai_summary: str | None = None
+    parsed_tags: list[str] = Field(default_factory=list)
+    is_favorite: bool = False
 
 
 class DocumentChunkBase(ORMBaseSchema):
@@ -68,3 +79,15 @@ class DocumentChunkUpdate(ORMBaseSchema):
 
 class DocumentChunkRead(DocumentChunkBase, TimestampSchema):
     document_id: uuid.UUID
+
+
+class DocumentListResponse(ORMBaseSchema):
+    items: list[UploadedDocumentListItem]
+    total: int
+    page: int
+    page_size: int
+
+
+class DocumentMetadataUpdate(ORMBaseSchema):
+    tags: list[str] = Field(default_factory=list)
+    is_favorite: bool | None = None

@@ -18,6 +18,7 @@ export async function streamAssistantChat(
     top_k?: number;
     hybrid?: boolean;
     conversation_id?: string;
+    document_ids?: string[];
   },
   handlers: {
     onContext?: (data: any) => void;
