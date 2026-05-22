@@ -60,37 +60,50 @@
 }
 
 .glass-panel {
-  @apply rounded-3xl border border-white/10 bg-white/60 backdrop-blur-xl dark:bg-slate-950/60;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(24px);
+}
+
+.dark .glass-panel {
+  background-color: rgba(2, 6, 23, 0.6);
 }
 
 .chat-markdown h1,
 .chat-markdown h2,
 .chat-markdown h3 {
-  @apply mt-6 text-balance font-semibold tracking-tight;
+  margin-top: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
 }
 
 .chat-markdown h1 {
-  @apply text-2xl;
+  font-size: 1.5rem;
 }
 
 .chat-markdown h2 {
-  @apply text-xl;
+  font-size: 1.25rem;
 }
 
 .chat-markdown h3 {
-  @apply text-lg;
+  font-size: 1.125rem;
 }
 
 .chat-markdown p {
-  @apply my-3;
+  margin: 0.75rem 0;
 }
 
 .chat-markdown ul {
-  @apply my-4 list-disc space-y-2 pl-6;
+  margin: 1rem 0;
+  list-style-type: disc;
+  padding-left: 1.5rem;
 }
 
 .chat-markdown ol {
-  @apply my-4 list-decimal space-y-2 pl-6;
+  margin: 1rem 0;
+  list-style-type: decimal;
+  padding-left: 1.5rem;
 }
 
 .chat-markdown li::marker {
