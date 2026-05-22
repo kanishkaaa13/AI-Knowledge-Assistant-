@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi_jwt_auth.exceptions import AuthJWTException
 
 from app.api.v1.router import api_router
 from app import models  # noqa: F401
@@ -15,10 +14,6 @@ from app.core import security
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-    @app.exception_handler(AuthJWTException)
-    async def authjwt_exception_handler(_, exc: AuthJWTException):
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
-
     @app.exception_handler(Exception)
     async def global_exception_handler(_, exc: Exception):
         logging.error(f"Unhandled exception: {exc}", exc_info=True)

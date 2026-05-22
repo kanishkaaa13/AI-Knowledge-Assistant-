@@ -4,7 +4,6 @@ sqlalchemy
 psycopg[binary]
 pydantic-settings
 python-dotenv
-fastapi-jwt-auth
 bcrypt
 email-validator
 PyJWT
@@ -21,3 +20,4 @@ chromadb
 sentence-transformers
 httpx
 cryptography
+passlib[bcrypt]

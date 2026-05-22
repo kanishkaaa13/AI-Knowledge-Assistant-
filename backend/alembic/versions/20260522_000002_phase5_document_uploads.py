@@ -11,18 +11,24 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("uploaded_documents", sa.Column("file_extension", sa.String(length=16), nullable=True))
-    op.add_column("uploaded_documents", sa.Column("checksum", sa.String(length=64), nullable=True))
-    op.add_column("uploaded_documents", sa.Column("page_count", sa.Integer(), nullable=True))
-    op.add_column("uploaded_documents", sa.Column("word_count", sa.Integer(), nullable=True))
+    # Columns already added from previous partial migration
+    # op.add_column("uploaded_documents", sa.Column("file_extension", sa.String(length=16), nullable=True))
+    # op.add_column("uploaded_documents", sa.Column("checksum", sa.String(length=64), nullable=True))
+    # op.add_column("uploaded_documents", sa.Column("page_count", sa.Integer(), nullable=True))
+    # op.add_column("uploaded_documents", sa.Column("word_count", sa.Integer(), nullable=True))
+    
+    # SQLite-compatible syntax for extracting file extension
     op.execute(
         "UPDATE uploaded_documents "
-        "SET file_extension = COALESCE(NULLIF(lower(substring(file_name from '\\.[^.]+$')), ''), '.txt') "
+        "SET file_extension = CASE "
+        "WHEN substr(file_name, instr(file_name, '.')) != '' THEN lower(substr(file_name, instr(file_name, '.') + 1)) "
+        "ELSE '.txt' END "
         "WHERE file_extension IS NULL"
     )
+    # SQLite doesn't have md5(), use a simple hash for now
     op.execute(
         "UPDATE uploaded_documents "
-        "SET checksum = md5(id::text) || md5(file_name) "
+        "SET checksum = lower(hex(randomblob(32))) "
         "WHERE checksum IS NULL"
     )
     op.alter_column("uploaded_documents", "file_extension", nullable=False)

@@ -11,13 +11,14 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="ignore",  # Allow extra fields in .env (like frontend variables)
     )
 
     PROJECT_NAME: str = "AI Knowledge Assistant"
     APP_ENV: str = "development"
     API_V1_PREFIX: str = "/api/v1"
     DATABASE_URL: str = Field(
-        default="postgresql+psycopg://postgres:postgres@localhost:5432/ai_knowledge_assistant"
+        default="sqlite:///./ai_knowledge_assistant.db"
     )
     JWT_SECRET_KEY: str = "replace-this-development-jwt-secret-with-32-plus-characters"
     FERNET_SECRET_KEY: str = "change-me-change-me-change-me-32bytes"
