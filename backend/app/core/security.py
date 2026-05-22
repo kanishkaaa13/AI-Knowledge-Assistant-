@@ -6,8 +6,14 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-# Use bcrypt with secure defaults
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use bcrypt with secure defaults and explicit backend
+# This avoids the wrap bug detection issue in passlib
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__rounds=12,
+    bcrypt__ident="2b",  # Use 2b ident to avoid wrap bug detection
+)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
