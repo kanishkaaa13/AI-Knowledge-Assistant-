@@ -11,11 +11,11 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Columns already added from previous partial migration
-    # op.add_column("uploaded_documents", sa.Column("file_extension", sa.String(length=16), nullable=True))
-    # op.add_column("uploaded_documents", sa.Column("checksum", sa.String(length=64), nullable=True))
-    # op.add_column("uploaded_documents", sa.Column("page_count", sa.Integer(), nullable=True))
-    # op.add_column("uploaded_documents", sa.Column("word_count", sa.Integer(), nullable=True))
+    # Add columns first
+    op.add_column("uploaded_documents", sa.Column("file_extension", sa.String(length=16), nullable=True))
+    op.add_column("uploaded_documents", sa.Column("checksum", sa.String(length=64), nullable=True))
+    op.add_column("uploaded_documents", sa.Column("page_count", sa.Integer(), nullable=True))
+    op.add_column("uploaded_documents", sa.Column("word_count", sa.Integer(), nullable=True))
     
     # SQLite-compatible syntax for extracting file extension
     op.execute(
@@ -31,15 +31,14 @@ def upgrade() -> None:
         "SET checksum = lower(hex(randomblob(32))) "
         "WHERE checksum IS NULL"
     )
-    op.alter_column("uploaded_documents", "file_extension", nullable=False)
-    op.alter_column("uploaded_documents", "checksum", nullable=False)
-    op.create_index(op.f("ix_uploaded_documents_checksum"), "uploaded_documents", ["checksum"], unique=False)
-    op.create_index(op.f("ix_uploaded_documents_file_extension"), "uploaded_documents", ["file_extension"], unique=False)
-    op.create_unique_constraint(
-        "uq_uploaded_documents_user_checksum",
-        "uploaded_documents",
-        ["user_id", "checksum"],
-    )
+    
+    # Use batch mode for SQLite ALTER COLUMN operations and constraints
+    with op.batch_alter_table("uploaded_documents") as batch_op:
+        batch_op.alter_column("file_extension", nullable=False)
+        batch_op.alter_column("checksum", nullable=False)
+        batch_op.create_index(op.f("ix_uploaded_documents_checksum"), ["checksum"], unique=False)
+        batch_op.create_index(op.f("ix_uploaded_documents_file_extension"), ["file_extension"], unique=False)
+        batch_op.create_unique_constraint("uq_uploaded_documents_user_checksum", ["user_id", "checksum"])
 
 
 def downgrade() -> None:
