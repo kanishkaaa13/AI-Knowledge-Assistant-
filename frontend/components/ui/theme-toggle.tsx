@@ -8,6 +8,25 @@ import { Button } from "@/components/ui/button";
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <Button
+        variant="secondary"
+        size="sm"
+        aria-label="Toggle theme"
+        className="opacity-50"
+      >
+        <SunMedium className="h-4 w-4" />
+      </Button>
+    );
+  }
+
   const isDark = resolvedTheme === "dark";
 
   return (

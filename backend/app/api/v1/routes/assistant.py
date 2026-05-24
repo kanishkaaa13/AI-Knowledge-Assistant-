@@ -133,56 +133,62 @@ async def stream_assistant_chat(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
-    apply_rate_limit(request, scope="assistant-stream", limit=30, user_id=str(current_user.id))
-    payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
-    memory = ChatMemoryService(db)
-    conversation = memory.get_or_create_conversation(
-        user=current_user,
-        conversation_id=payload.conversation_id,
-        initial_user_message=payload.query,
-    )
-    if payload.conversation_id is not None:
-        memory.append_message(
-            conversation=conversation,
-            role="user",
-            content=payload.query,
-        )
-
-    async def event_stream():
-        full_answer = ""
-        assistant_stream = AssistantChatService(get_vector_store_service()).stream_answer(
+    try:
+        apply_rate_limit(request, scope="assistant-stream", limit=30, user_id=str(current_user.id))
+        payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
+        memory = ChatMemoryService(db)
+        conversation = memory.get_or_create_conversation(
             user=current_user,
-            query=payload.query,
-            model=payload.model,
-            top_k=payload.top_k or 4,
-            document_ids=_sanitized_document_ids(payload.document_ids),
+            conversation_id=payload.conversation_id,
+            initial_user_message=payload.query,
         )
+        if payload.conversation_id is not None:
+            memory.append_message(
+                conversation=conversation,
+                role="user",
+                content=payload.query,
+            )
 
-        async for chunk in assistant_stream:
-            if not chunk.startswith("data: "):
-                yield chunk
-                continue
+        async def event_stream():
+            full_answer = ""
+            assistant_stream = AssistantChatService(get_vector_store_service()).stream_answer(
+                user=current_user,
+                query=payload.query,
+                model=payload.model,
+                top_k=payload.top_k or 4,
+                document_ids=_sanitized_document_ids(payload.document_ids),
+            )
 
-            payload_json = chunk[6:].strip()
-            data = json.loads(payload_json)
+            async for chunk in assistant_stream:
+                if not chunk.startswith("data: "):
+                    yield chunk
+                    continue
 
-            if data.get("type") == "token":
-                full_answer += data.get("content", "")
-            elif data.get("type") == "done":
-                updated_conversation = memory.sync_conversation_after_response(
-                    conversation=conversation,
-                    user_message=payload.query,
-                    assistant_message=full_answer.strip() or "I cannot find that information in your uploaded documents.",
-                )
-                data["conversation_id"] = str(updated_conversation.id)
-                data["conversation_title"] = updated_conversation.title
-            elif data.get("type") == "context":
-                data["conversation_id"] = str(conversation.id)
-                data["conversation_title"] = conversation.title
+                payload_json = chunk[6:].strip()
+                data = json.loads(payload_json)
 
-            yield f"data: {json.dumps(data)}\n\n"
+                if data.get("type") == "token":
+                    full_answer += data.get("content", "")
+                elif data.get("type") == "done":
+                    updated_conversation = memory.sync_conversation_after_response(
+                        conversation=conversation,
+                        user_message=payload.query,
+                        assistant_message=full_answer.strip() or "I cannot find that information in your uploaded documents.",
+                    )
+                    data["conversation_id"] = str(updated_conversation.id)
+                    data["conversation_title"] = updated_conversation.title
+                elif data.get("type") == "context":
+                    data["conversation_id"] = str(conversation.id)
+                    data["conversation_title"] = conversation.title
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+                yield f"data: {json.dumps(data)}\n\n"
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+    except Exception as e:
+        import traceback
+        print("CRITICAL CHAT EXCEPTION ERROR:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/summaries", response_model=AssistantSummaryResponse)
