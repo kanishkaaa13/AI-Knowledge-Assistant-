@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import chromadb
 from chromadb import PersistentClient
-
-from app.core.config import settings
-from app.services.embeddings import get_embedding_model
+from sentence_transformers import SentenceTransformer
 
 
 @dataclass
@@ -26,139 +24,187 @@ class VectorSearchResult:
     metadata: dict
     distance: float
     semantic_score: float
-    keyword_score: float
-    combined_score: float
 
 
-class ChromaVectorStoreService:
-    def __init__(self) -> None:
-        persist_directory = Path(settings.CHROMA_PERSIST_DIRECTORY)
-        persist_directory.mkdir(parents=True, exist_ok=True)
-        self.client: PersistentClient = chromadb.PersistentClient(path=str(persist_directory))
-        self.embedding_model = get_embedding_model()
+class VectorStoreService:
+    """Vector store service using ChromaDB and Sentence-Transformers for semantic search."""
+
+    def __init__(self, persist_directory: str = "storage/chromadb", model_name: str = "all-MiniLM-L6-v2"):
+        """
+        Initialize the vector store service.
+
+        Args:
+            persist_directory: Path to store ChromaDB data
+            model_name: HuggingFace model name for embeddings
+        """
+        persist_path = Path(persist_directory)
+        persist_path.mkdir(parents=True, exist_ok=True)
+        
+        self.client: PersistentClient = chromadb.PersistentClient(path=str(persist_path))
+        self.embedding_model = SentenceTransformer(model_name)
+        self.model_name = model_name
 
     def _collection_name(self, user_id: uuid.UUID) -> str:
-        slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(user_id))
-        return f"{settings.CHROMA_COLLECTION_NAME}_{slug}"
+        """
+        Generate user-isolated collection name.
 
-    def _collection(self, user_id: uuid.UUID):
-        return self.client.get_or_create_collection(name=self._collection_name(user_id))
+        Args:
+            user_id: User UUID
 
-    def upsert_vectors(self, *, user_id: uuid.UUID, records: list[VectorRecord]) -> None:
-        if not records:
+        Returns:
+            Collection name in format 'user_collection_{user_id}'
+        """
+        return f"user_collection_{user_id}"
+
+    def _get_or_create_collection(self, user_id: uuid.UUID):
+        """
+        Get or create user-isolated collection.
+
+        Args:
+            user_id: User UUID
+
+        Returns:
+            ChromaDB collection
+        """
+        collection_name = self._collection_name(user_id)
+        return self.client.get_or_create_collection(name=collection_name)
+
+    def add_documents_to_vector_store(
+        self,
+        user_id: uuid.UUID,
+        chunks_list: list[dict[str, Any]],
+    ) -> None:
+        """
+        Vectorize text chunks and save to ChromaDB with metadata.
+
+        Args:
+            user_id: User UUID for collection isolation
+            chunks_list: List of dicts with 'id', 'content', and metadata fields
+                        Expected metadata: 'document_id', 'filename', 'chunk_index'
+        """
+        if not chunks_list:
             return
 
-        collection = self._collection(user_id)
-        documents = [record.document for record in records]
-        embeddings = self.embedding_model.embed_documents(documents)
+        collection = self._get_or_create_collection(user_id)
+
+        # Extract data
+        ids = [str(chunk.get("id", "")) for chunk in chunks_list]
+        documents = [chunk.get("content", "") for chunk in chunks_list]
+        
+        # Prepare metadata with required fields
         metadatas = []
-        for record in records:
-            metadata = dict(record.metadata)
-            metadata.setdefault("user_id", str(user_id))
+        for chunk in chunks_list:
+            metadata = dict(chunk.get("metadata", {}))
+            # Ensure required metadata fields
+            metadata["user_id"] = str(user_id)
+            metadata.setdefault("document_id", chunk.get("document_id", ""))
+            metadata.setdefault("filename", chunk.get("filename", ""))
+            metadata.setdefault("chunk_index", chunk.get("chunk_index", 0))
             metadatas.append(metadata)
+
+        # Generate embeddings
+        embeddings = self.embedding_model.encode(documents, show_progress_bar=False).tolist()
+
+        # Upsert to ChromaDB
         collection.upsert(
-            ids=[record.id for record in records],
+            ids=ids,
             documents=documents,
             metadatas=metadatas,
             embeddings=embeddings,
         )
 
-    def update_vectors(self, *, user_id: uuid.UUID, records: list[VectorRecord]) -> None:
-        self.upsert_vectors(user_id=user_id, records=records)
-
-    def delete_vectors(
+    def similarity_search(
         self,
-        *,
-        user_id: uuid.UUID,
-        ids: list[str] | None = None,
-        where: dict | None = None,
-    ) -> None:
-        if not ids and not where:
-            return
-        collection = self._collection(user_id)
-        collection.delete(ids=ids, where=where)
-
-    def semantic_similarity_search(
-        self,
-        *,
         user_id: uuid.UUID,
         query: str,
-        top_k: int,
+        top_k: int = 4,
     ) -> list[VectorSearchResult]:
-        collection = self._collection(user_id)
-        query_embedding = self.embedding_model.embed_query(query)
+        """
+        Perform semantic similarity search on user's collection.
+
+        Args:
+            user_id: User UUID for collection isolation
+            query: Search query text
+            top_k: Number of top results to return
+
+        Returns:
+            List of VectorSearchResult with document, metadata, and scores
+        """
+        collection = self._get_or_create_collection(user_id)
+
+        # Generate query embedding
+        query_embedding = self.embedding_model.encode(query, show_progress_bar=False).tolist()
+
+        # Query ChromaDB
         results = collection.query(
             query_embeddings=[query_embedding],
             n_results=top_k,
             where={"user_id": str(user_id)},
             include=["documents", "metadatas", "distances"],
         )
-        return self._format_query_results(results)
 
-    def hybrid_similarity_search(
-        self,
-        *,
-        user_id: uuid.UUID,
-        query: str,
-        top_k: int,
-    ) -> list[VectorSearchResult]:
-        semantic_results = self.semantic_similarity_search(
-            user_id=user_id,
-            query=query,
-            top_k=max(top_k * 3, top_k),
-        )
-
-        query_terms = {term for term in re.findall(r"\w+", query.lower()) if term}
-        reranked_results: list[VectorSearchResult] = []
-
-        for result in semantic_results:
-            document_terms = set(re.findall(r"\w+", result.document.lower()))
-            overlap = len(query_terms & document_terms)
-            keyword_score = overlap / max(len(query_terms), 1)
-            combined_score = (result.semantic_score * 0.75) + (keyword_score * 0.25)
-            reranked_results.append(
-                VectorSearchResult(
-                    id=result.id,
-                    document=result.document,
-                    metadata=result.metadata,
-                    distance=result.distance,
-                    semantic_score=result.semantic_score,
-                    keyword_score=keyword_score,
-                    combined_score=combined_score,
-                )
-            )
-
-        reranked_results.sort(key=lambda item: item.combined_score, reverse=True)
-        return reranked_results[:top_k]
-
-    def _format_query_results(self, results: dict) -> list[VectorSearchResult]:
+        # Format results
+        formatted_results = []
         ids = results.get("ids", [[]])[0]
         documents = results.get("documents", [[]])[0]
         metadatas = results.get("metadatas", [[]])[0]
         distances = results.get("distances", [[]])[0]
 
-        formatted: list[VectorSearchResult] = []
         for vector_id, document, metadata, distance in zip(ids, documents, metadatas, distances):
+            # Convert distance to similarity score (ChromaDB uses cosine distance)
             semantic_score = max(0.0, 1.0 - float(distance or 0.0))
-            formatted.append(
+            
+            formatted_results.append(
                 VectorSearchResult(
                     id=vector_id,
                     document=document,
                     metadata=metadata or {},
                     distance=float(distance or 0.0),
                     semantic_score=semantic_score,
-                    keyword_score=0.0,
-                    combined_score=semantic_score,
                 )
             )
-        return formatted
+
+        return formatted_results
+
+    def delete_documents(
+        self,
+        user_id: uuid.UUID,
+        document_ids: list[str] | None = None,
+    ) -> None:
+        """
+        Delete documents from user's collection.
+
+        Args:
+            user_id: User UUID for collection isolation
+            document_ids: List of document IDs to delete (optional)
+        """
+        if not document_ids:
+            return
+
+        collection = self._get_or_create_collection(user_id)
+        collection.delete(where={"document_id": {"$in": document_ids}})
+
+    def delete_collection(self, user_id: uuid.UUID) -> None:
+        """
+        Delete entire user collection.
+
+        Args:
+            user_id: User UUID for collection isolation
+        """
+        collection_name = self._collection_name(user_id)
+        try:
+            self.client.delete_collection(name=collection_name)
+        except Exception:
+            # Collection might not exist
+            pass
 
 
-_vector_store_service: ChromaVectorStoreService | None = None
+_vector_store_service: VectorStoreService | None = None
 
 
-def get_vector_store_service() -> ChromaVectorStoreService:
+def get_vector_store_service() -> VectorStoreService:
+    """Get singleton instance of VectorStoreService."""
     global _vector_store_service
     if _vector_store_service is None:
-        _vector_store_service = ChromaVectorStoreService()
+        _vector_store_service = VectorStoreService()
     return _vector_store_service
