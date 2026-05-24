@@ -35,6 +35,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const refreshUser = React.useCallback(async () => {
+    // Only try to refresh if we have an access token cookie
+    if (typeof document !== "undefined" && !document.cookie.includes("access_token")) {
+      setUser(null);
+      setStatus("unauthenticated");
+      setClientAuthCookie(false);
+      return;
+    }
+
     setStatus("loading");
 
     try {

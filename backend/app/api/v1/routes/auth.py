@@ -111,25 +111,48 @@ async def login(
 
 @router.post("/refresh", response_model=AuthResponse)
 async def refresh(
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
 ) -> AuthResponse:
     """
     Refresh the authentication token.
     
-    Currently requires re-login. A full refresh token implementation can be added later.
-    
     Args:
-        response: FastAPI response object
+        request: FastAPI request object for reading cookies
+        response: FastAPI response object for setting cookies
         db: Database session
         
+    Returns:
+        AuthResponse: Authenticated user data with success message
+        
     Raises:
-        HTTPException: Always requires re-login for now
+        HTTPException: If refresh fails due to invalid token
     """
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Please login again.",
-    )
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No access token found.",
+        )
+    
+    payload = decode_access_token(access_token)
+    if not payload or "sub" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid access token.",
+        )
+    
+    user_id = payload["sub"]
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found.",
+        )
+    
+    set_auth_cookies(response, user)
+    return AuthResponse(user=UserRead.model_validate(user), message="Token refreshed.")
 
 
 @router.post("/logout")

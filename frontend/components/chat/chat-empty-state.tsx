@@ -22,7 +22,7 @@ const prompts = [
 
 export function ChatEmptyState() {
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6">
+    <div className="flex h-full flex-1 items-center justify-center px-4 py-10 sm:px-6">
       <div className="w-full max-w-4xl space-y-8">
         <div className="text-center">
           <p className="text-xs font-medium uppercase tracking-[0.3em] text-primary">

@@ -53,7 +53,7 @@ class AnalyticsOverview(BaseModel):
 
 
 class AssistantSummaryRequest(BaseModel):
-    query: str = Field(min_length=3)
+    query: str = Field(min_length=1)
     model: str = "llama3"
     document_ids: list[str] = Field(default_factory=list)
 

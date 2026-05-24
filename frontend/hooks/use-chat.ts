@@ -417,9 +417,15 @@ export function useChat() {
 
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
     } catch (error: any) {
-      const message = error?.message || "Unable to generate a local AI response.";
-      updateAssistantMessage(() => message, true);
-      toast.error(message);
+      const isValidationError = error?.response?.status === 422;
+      const isServerError = error?.response?.status >= 500;
+      const userMessage = isValidationError
+        ? "⚠️ Error: Your message couldn't be processed. Please try again."
+        : isServerError
+          ? "⚠️ Error: Server error occurred. Please try again."
+          : "⚠️ Error: Something went wrong. Please check your message and try again.";
+      updateAssistantMessage(() => userMessage, true);
+      toast.error(userMessage);
     }
   }, [
     activeConversationId,

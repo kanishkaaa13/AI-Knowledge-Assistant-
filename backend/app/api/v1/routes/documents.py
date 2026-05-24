@@ -82,7 +82,6 @@ async def list_documents(
 @router.post("/upload", response_model=UploadedDocumentRead, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     request: Request,
-    background_tasks: BackgroundTasks,
     title: str = Form(...),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -95,19 +94,30 @@ async def upload_document(
         user_id=str(current_user.id),
     )
     safe_title = ensure_present(sanitize_text(title, max_length=255), field_name="title")
-    upload_data = await parse_upload(file, current_user.id)
-    document = create_document_record(
-        db,
-        user=current_user,
-        title=safe_title or upload_data.safe_file_name,
-        upload_data=upload_data,
-    )
-    document.status = "queued"
-    db.add(document)
-    db.commit()
-    db.refresh(document)
-    background_tasks.add_task(process_document_ingestion, str(document.id))
-    return UploadedDocumentRead.model_validate(document)
+    
+    from app.services.document_processor import DocumentProcessor
+    
+    processor = DocumentProcessor(chunk_size=500, chunk_overlap=50)
+    file_bytes = await file.read()
+    
+    try:
+        processed = processor.process_document(
+            db=db,
+            user_id=current_user.id,
+            title=safe_title or file.filename or "Document",
+            file_name=file.filename or "document",
+            file_bytes=file_bytes,
+            mime_type=file.content_type,
+        )
+        
+        # Return the document with chunk count info
+        document = db.get(UploadedDocument, processed.document_id)
+        return UploadedDocumentRead.model_validate(document)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 @router.get("/{document_id}", response_model=UploadedDocumentRead)

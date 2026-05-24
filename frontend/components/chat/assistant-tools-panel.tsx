@@ -33,8 +33,8 @@ export function AssistantToolsPanel({
   onUsePrompt: (prompt: string) => void;
 }) {
   return (
-    <aside className="hidden w-[340px] shrink-0 border-l border-border/60 bg-card/30 xl:flex xl:flex-col">
-      <div className="space-y-5 overflow-y-auto p-5">
+    <aside className="hidden h-screen w-[340px] shrink-0 overflow-y-auto border-l border-border/60 bg-card/30 xl:flex xl:flex-col">
+      <div className="space-y-4 p-5">
         <section className="rounded-3xl border border-border/60 bg-card/70 p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Sparkles className="h-4 w-4 text-primary" />

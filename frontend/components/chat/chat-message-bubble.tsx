@@ -17,10 +17,31 @@ export function ChatMessageBubble({
   userName: string;
 }) {
   const isUser = message.role === "user";
+  const isError = !isUser && (message.content.startsWith('{"detail":') || message.content.startsWith("⚠️ Error:"));
 
   async function copyMessage() {
     await navigator.clipboard.writeText(message.content);
     toast.success("Message copied");
+  }
+
+  if (isError) {
+    return (
+      <article className="flex gap-4 justify-start">
+        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+          <Bot className="h-5 w-5" />
+        </div>
+        <div className="max-w-3xl rounded-[2rem] border border-destructive/30 bg-destructive/5 px-5 py-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-destructive">
+            <Bot className="h-3.5 w-3.5" />
+            Error
+          </div>
+          <div className="text-sm text-destructive/90">{message.content}</div>
+          <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+            <span>{message.createdAt}</span>
+          </div>
+        </div>
+      </article>
+    );
   }
 
   return (

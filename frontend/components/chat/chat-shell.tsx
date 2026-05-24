@@ -145,12 +145,14 @@ export function ChatShell({
               messages={messages}
               userName={user?.name ?? "You"}
             />
-            <ChatInput
-              input={input}
-              onInputChange={onInputChange}
-              onSendMessage={onSendMessage}
-              streamResponses={settings.streamResponses}
-            />
+            <div className="border-t border-border/60 bg-background/90 px-4 py-4 backdrop-blur-xl sm:px-6">
+              <ChatInput
+                input={input}
+                onInputChange={onInputChange}
+                onSendMessage={onSendMessage}
+                streamResponses={settings.streamResponses}
+              />
+            </div>
           </div>
 
           <AssistantToolsPanel
