@@ -41,8 +41,15 @@ class VectorStoreService:
         persist_path.mkdir(parents=True, exist_ok=True)
         
         self.client: PersistentClient = chromadb.PersistentClient(path=str(persist_path))
-        self.embedding_model = SentenceTransformer(model_name)
+        self._embedding_model: SentenceTransformer | None = None
         self.model_name = model_name
+
+    @property
+    def embedding_model(self) -> SentenceTransformer:
+        """Lazy-load the embedding model on first access."""
+        if self._embedding_model is None:
+            self._embedding_model = SentenceTransformer(self.model_name)
+        return self._embedding_model
 
     def _collection_name(self, user_id: uuid.UUID) -> str:
         """

@@ -22,14 +22,14 @@ from app.services.prompt_builder import (
 )
 from app.services.rag_pipeline import RAGIngestionService, RAGRetrievalService
 from app.services.text_chunker import DocumentChunker
-from app.services.vector_store import ChromaVectorStoreService, get_vector_store_service
+from app.services.vector_store import VectorStoreService, get_vector_store_service
 
 __all__ = [
     "AnalyticsService",
     "AssistantChatService",
     "AssistantFeatureService",
     "ChatMemoryService",
-    "ChromaVectorStoreService",
+    "VectorStoreService",
     "DocumentChunker",
     "LLMGateway",
     "OllamaLLMService",
