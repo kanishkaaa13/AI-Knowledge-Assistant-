@@ -5,6 +5,8 @@ import json
 import traceback
 from collections.abc import AsyncIterator
 
+from fastapi import HTTPException
+
 from app.models.user import User
 from app.services.ollama_llm import OllamaLLMService
 from app.services.prompt_builder import build_rag_prompt

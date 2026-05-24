@@ -29,7 +29,13 @@ class ChatMemoryService:
         conversation = self._get_owned_conversation(user=user, conversation_id=conversation_id)
         messages = self.messages.list_by_conversation(conversation.id)
         return ConversationDetail(
-            **conversation.__dict__,
+            id=str(conversation.id),
+            user_id=str(conversation.user_id),
+            title=conversation.title,
+            summary=conversation.summary,
+            created_at=conversation.created_at.isoformat(),
+            updated_at=conversation.updated_at.isoformat(),
+            is_favorite=conversation.is_favorite,
             messages=[MessageRead.model_validate(message) for message in messages],
         )
 
@@ -58,7 +64,13 @@ class ChatMemoryService:
             messages.append(MessageRead.model_validate(message))
 
         return ConversationDetail(
-            **conversation.__dict__,
+            id=str(conversation.id),
+            user_id=str(conversation.user_id),
+            title=conversation.title,
+            summary=conversation.summary,
+            created_at=conversation.created_at.isoformat(),
+            updated_at=conversation.updated_at.isoformat(),
+            is_favorite=conversation.is_favorite,
             messages=messages,
         )
 
@@ -181,7 +193,12 @@ class ChatMemoryService:
         last_message = self.messages.get_last_message(conversation.id)
         message_count = self.conversations.get_message_count(conversation.id)
         return ConversationListItem(
-            **conversation.__dict__,
+            id=str(conversation.id),
+            title=conversation.title,
+            summary=conversation.summary,
+            created_at=conversation.created_at.isoformat(),
+            updated_at=conversation.updated_at.isoformat(),
+            is_favorite=conversation.is_favorite,
             message_count=message_count,
             last_message_preview=self.summarize(last_message.content if last_message else conversation.summary),
         )
