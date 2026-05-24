@@ -9,12 +9,12 @@ from app.services.prompt_builder import (
     build_summary_prompt,
     build_suggested_prompts_prompt,
 )
-from app.services.rag_pipeline import RAGRetrievalService
+from app.services.vector_store import VectorStoreService
 
 
 class AssistantFeatureService:
-    def __init__(self, retrieval_service: RAGRetrievalService) -> None:
-        self.retrieval_service = retrieval_service
+    def __init__(self, vector_store: VectorStoreService) -> None:
+        self.vector_store = vector_store
         self.ollama = OllamaLLMService()
 
     async def summarize_documents(
@@ -23,22 +23,34 @@ class AssistantFeatureService:
         user: User,
         query: str,
         model: str,
-        top_k: int | None = None,
+        top_k: int = 4,
         document_ids: list[str] | None = None,
     ) -> dict:
-        retrieval = self.retrieval_service.retrieve(
-            user=user,
+        # Retrieve context from ChromaDB
+        search_results = self.vector_store.similarity_search(
+            user_id=user.id,
             query=query,
             top_k=top_k,
-            hybrid=True,
-            document_ids=document_ids,
         )
-        prompt = build_summary_prompt(query=query, context=retrieval.context)
+
+        if not search_results:
+            return {
+                "summary": "I cannot find that information in your uploaded documents.",
+                "chunks": [],
+                "context": "",
+            }
+
+        # Build context from retrieved chunks
+        context = "\n\n".join([result.document for result in search_results])
+        
+        # Build summary prompt
+        prompt = build_summary_prompt(query=query, context=context)
         summary = await self.ollama.generate(prompt=prompt, model=model)
+        
         return {
-            "summary": summary.strip() or "Unknown based on the provided context.",
-            "chunks": retrieval.chunks,
-            "context": retrieval.context,
+            "summary": summary.strip() or "I cannot find that information in your uploaded documents.",
+            "chunks": [{"content": result.document, "metadata": result.metadata} for result in search_results],
+            "context": context,
         }
 
     async def generate_quiz(
@@ -47,23 +59,50 @@ class AssistantFeatureService:
         user: User,
         query: str,
         model: str,
-        count: int = 5,
+        count: int = 3,
         document_ids: list[str] | None = None,
     ) -> dict:
-        retrieval = self.retrieval_service.retrieve(
-            user=user,
+        # Retrieve context from ChromaDB
+        search_results = self.vector_store.similarity_search(
+            user_id=user.id,
             query=query,
             top_k=max(count, 4),
-            hybrid=True,
-            document_ids=document_ids,
         )
-        prompt = build_quiz_prompt(query=query, context=retrieval.context, count=count)
+
+        if not search_results:
+            return {
+                "questions": [],
+                "chunks": [],
+                "context": "",
+            }
+
+        # Build context from retrieved chunks
+        context = "\n\n".join([result.document for result in search_results])
+        
+        # Build quiz prompt with JSON format specification
+        prompt = build_quiz_prompt(query=query, context=context, count=count)
         raw = await self.ollama.generate(prompt=prompt, model=model)
+        
         try:
+            # Try to parse JSON response
             questions = json.loads(raw)
+            # Ensure questions have the required format
+            formatted_questions = []
+            for q in questions if isinstance(questions, list) else []:
+                formatted_questions.append({
+                    "question": q.get("question", ""),
+                    "options": q.get("options", []),
+                    "correct_answer": q.get("correct_answer", "")
+                })
         except json.JSONDecodeError:
-            questions = []
-        return {"questions": questions, "chunks": retrieval.chunks, "context": retrieval.context}
+            # If JSON parsing fails, return empty array
+            formatted_questions = []
+        
+        return {
+            "questions": formatted_questions,
+            "chunks": [{"content": result.document, "metadata": result.metadata} for result in search_results],
+            "context": context,
+        }
 
     async def suggested_prompts(
         self,
@@ -73,14 +112,30 @@ class AssistantFeatureService:
         model: str,
         document_ids: list[str] | None = None,
     ) -> dict:
-        retrieval = self.retrieval_service.retrieve(
-            user=user,
+        # Retrieve context from ChromaDB
+        search_results = self.vector_store.similarity_search(
+            user_id=user.id,
             query=query,
             top_k=6,
-            hybrid=True,
-            document_ids=document_ids,
         )
-        prompt = build_suggested_prompts_prompt(query=query, context=retrieval.context)
+
+        if not search_results:
+            return {
+                "prompts": [],
+                "chunks": [],
+            }
+
+        # Build context from retrieved chunks
+        context = "\n\n".join([result.document for result in search_results])
+        
+        # Build suggested prompts prompt
+        prompt = build_suggested_prompts_prompt(query=query, context=context)
         raw = await self.ollama.generate(prompt=prompt, model=model)
+        
+        # Parse prompts from response
         prompts = [line.strip("- ").strip() for line in raw.splitlines() if line.strip()]
-        return {"prompts": prompts[:6], "chunks": retrieval.chunks}
+        
+        return {
+            "prompts": prompts[:3],
+            "chunks": [{"content": result.document, "metadata": result.metadata} for result in search_results],
+        }

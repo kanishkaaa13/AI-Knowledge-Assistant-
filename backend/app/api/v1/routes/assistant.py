@@ -28,6 +28,7 @@ from app.services.assistant_chat import AssistantChatService
 from app.services.assistant_features import AssistantFeatureService
 from app.services.chat_memory import ChatMemoryService
 from app.services.rag_pipeline import RAGRetrievalService
+from app.services.vector_store import get_vector_store_service
 
 router = APIRouter()
 
@@ -107,12 +108,11 @@ async def query_assistant(
             content=payload.query,
         )
 
-    result = await AssistantChatService(RAGRetrievalService(db)).answer(
+    result = await AssistantChatService(get_vector_store_service()).answer(
         user=current_user,
         query=payload.query,
         model=payload.model,
-        top_k=payload.top_k,
-        hybrid=payload.hybrid,
+        top_k=payload.top_k or 4,
         document_ids=_sanitized_document_ids(payload.document_ids),
     )
     updated_conversation = memory.sync_conversation_after_response(
@@ -149,12 +149,11 @@ async def stream_assistant_chat(
 
     async def event_stream():
         full_answer = ""
-        assistant_stream = AssistantChatService(RAGRetrievalService(db)).stream_answer(
+        assistant_stream = AssistantChatService(get_vector_store_service()).stream_answer(
             user=current_user,
             query=payload.query,
             model=payload.model,
-            top_k=payload.top_k,
-            hybrid=payload.hybrid,
+            top_k=payload.top_k or 4,
             document_ids=_sanitized_document_ids(payload.document_ids),
         )
 
@@ -172,7 +171,7 @@ async def stream_assistant_chat(
                 updated_conversation = memory.sync_conversation_after_response(
                     conversation=conversation,
                     user_message=payload.query,
-                    assistant_message=full_answer.strip() or "Unknown based on the provided context.",
+                    assistant_message=full_answer.strip() or "I cannot find that information in your uploaded documents.",
                 )
                 data["conversation_id"] = str(updated_conversation.id)
                 data["conversation_title"] = updated_conversation.title
@@ -194,7 +193,7 @@ async def summarize_documents(
 ) -> AssistantSummaryResponse:
     apply_rate_limit(request, scope="assistant-summaries", limit=20, user_id=str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
-    result = await AssistantFeatureService(RAGRetrievalService(db)).summarize_documents(
+    result = await AssistantFeatureService(get_vector_store_service()).summarize_documents(
         user=current_user,
         query=payload.query,
         model=payload.model,
@@ -212,7 +211,7 @@ async def generate_quiz(
 ) -> AssistantQuizResponse:
     apply_rate_limit(request, scope="assistant-quiz", limit=20, user_id=str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
-    result = await AssistantFeatureService(RAGRetrievalService(db)).generate_quiz(
+    result = await AssistantFeatureService(get_vector_store_service()).generate_quiz(
         user=current_user,
         query=payload.query,
         model=payload.model,
@@ -230,7 +229,7 @@ async def suggested_prompts(
 ) -> SuggestedPromptsResponse:
     apply_rate_limit(request, scope="assistant-suggested-prompts", limit=20, user_id=str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
-    result = await AssistantFeatureService(RAGRetrievalService(db)).suggested_prompts(
+    result = await AssistantFeatureService(get_vector_store_service()).suggested_prompts(
         user=current_user,
         query=payload.query,
         model=payload.model,
@@ -248,30 +247,40 @@ async def semantic_document_search(
 ) -> SemanticDocumentSearchResponse:
     apply_rate_limit(request, scope="assistant-document-search", limit=30, user_id=str(current_user.id))
     safe_query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
-    retrieval = RAGRetrievalService(db).retrieve(
-        user=current_user,
+    
+    # Use VectorStoreService for semantic search
+    vector_store = get_vector_store_service()
+    search_results = vector_store.similarity_search(
+        user_id=current_user.id,
         query=safe_query,
         top_k=8,
-        hybrid=True,
-        document_ids=_sanitized_document_ids(payload.document_ids),
     )
+    
     seen: set[str] = set()
     results: list[SemanticDocumentSearchItem] = []
     repository = DocumentRepository(db)
-    for chunk in retrieval.chunks:
-        key = str(chunk.document_id)
-        if key in seen:
+    
+    for result in search_results:
+        document_id = result.metadata.get("document_id", "")
+        if not document_id or document_id in seen:
             continue
-        seen.add(key)
-        document = repository.get_by_user(chunk.document_id, current_user.id)
-        results.append(
-            SemanticDocumentSearchItem(
-                document_id=key,
-                title=chunk.document_title,
-                filename=chunk.filename,
-                excerpt=chunk.content[:220],
-                score=chunk.score,
-                tags=[item.strip() for item in (document.tags or "").split(",") if item.strip()] if document else [],
+        seen.add(document_id)
+        
+        try:
+            doc_uuid = uuid.UUID(document_id)
+            document = repository.get_by_user(doc_uuid, current_user.id)
+            results.append(
+                SemanticDocumentSearchItem(
+                    document_id=document_id,
+                    title=result.metadata.get("document_title", "Unknown"),
+                    filename=result.metadata.get("filename", "unknown"),
+                    excerpt=result.document[:220],
+                    score=result.semantic_score,
+                    tags=[item.strip() for item in (document.tags or "").split(",") if item.strip()] if document else [],
+                )
             )
-        )
+        except (ValueError, TypeError):
+            # Skip invalid document IDs
+            continue
+    
     return SemanticDocumentSearchResponse(results=results)

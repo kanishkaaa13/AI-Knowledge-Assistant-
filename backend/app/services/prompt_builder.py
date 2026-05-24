@@ -1,22 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate
 
 GROUNDED_RAG_PROMPT_TEMPLATE = ChatPromptTemplate.from_template(
-    """You are a Personal AI Knowledge Assistant running with a local language model.
+    """You are a helpful knowledge assistant. Use exclusively the following pieces of context to answer the user's question. If the answer cannot be found in the context, say exactly: 'I cannot find that information in your uploaded documents.' Do not make up answers.
 
-Strict rules:
-- Answer only from the provided context.
-- Do not use outside knowledge.
-- If the context does not contain the answer, reply with: "Unknown based on the provided context."
-- Do not invent facts, citations, filenames, or details.
-- Keep the answer concise, clear, and grounded.
+CONTEXT: {context}
 
-Context:
-{context}
-
-User question:
-{query}
-
-Grounded answer:"""
+QUESTION: {query}"""
 )
 
 SUMMARY_PROMPT_TEMPLATE = ChatPromptTemplate.from_template(
@@ -42,7 +31,7 @@ QUIZ_PROMPT_TEMPLATE = ChatPromptTemplate.from_template(
 Rules:
 - Use only the given context.
 - Return valid JSON only.
-- Return an array of {{"question":"...","answer":"...","difficulty":"easy|medium|hard"}}.
+- Return an array of objects with this exact structure: {{"question":"...","options":["A","B","C","D"],"correct_answer":"A"}}.
 - Generate exactly {count} items.
 - If the context is insufficient, return [].
 
@@ -51,7 +40,8 @@ Topic:
 
 Context:
 {context}
-"""
+
+Respond with valid JSON array only:"""
 )
 
 SUGGESTED_PROMPTS_TEMPLATE = ChatPromptTemplate.from_template(
