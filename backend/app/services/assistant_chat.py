@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import httpx
 import json
 import traceback
 from collections.abc import AsyncIterator
@@ -114,6 +115,20 @@ class AssistantChatService:
         # Build system prompt with strict context injection
         prompt = build_rag_prompt(query=query, context=context)
         full_answer = ""
+
+        # Check Ollama availability before streaming
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get("http://localhost:11434", timeout=2.0)
+                if response.status_code != 200:
+                    raise ValueError("Ollama engine offline")
+        except Exception:
+            print("WARNING: Ollama availability check failed")
+            traceback.print_exc()
+            diagnostic_message = "🤖 System Note: Your backend cannot talk to Ollama. Ensure the desktop app is open and you have run 'ollama pull llama3' in your terminal."
+            yield f"data: {json.dumps({'type': 'token', 'content': diagnostic_message})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'answer': diagnostic_message, 'prompt': prompt})}\n\n"
+            return
 
         # Stream tokens from Ollama with fallback
         try:
