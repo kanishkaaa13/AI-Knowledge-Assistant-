@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -41,8 +42,16 @@ class VectorStoreService:
         persist_path.mkdir(parents=True, exist_ok=True)
         
         self.client: PersistentClient = chromadb.PersistentClient(path=str(persist_path))
-        self.embedding_model = SentenceTransformer(model_name)
+        self._embedding_model: SentenceTransformer | None = None
         self.model_name = model_name
+
+    async def _get_embedding_model(self) -> SentenceTransformer:
+        """Lazy load the embedding model only when needed, in a thread pool."""
+        if self._embedding_model is None:
+            def _load_model():
+                return SentenceTransformer(self.model_name)
+            self._embedding_model = await asyncio.to_thread(_load_model)
+        return self._embedding_model
 
     def _collection_name(self, user_id: uuid.UUID) -> str:
         """
@@ -113,7 +122,7 @@ class VectorStoreService:
             embeddings=embeddings,
         )
 
-    def similarity_search(
+    async def similarity_search(
         self,
         user_id: uuid.UUID,
         query: str,
@@ -130,41 +139,48 @@ class VectorStoreService:
         Returns:
             List of VectorSearchResult with document, metadata, and scores
         """
-        collection = self._get_or_create_collection(user_id)
+        def _search_sync(embedding_model):
+            collection = self._get_or_create_collection(user_id)
 
-        # Generate query embedding
-        query_embedding = self.embedding_model.encode(query, show_progress_bar=False).tolist()
+            # Generate query embedding
+            query_embedding = embedding_model.encode(query, show_progress_bar=False).tolist()
 
-        # Query ChromaDB
-        results = collection.query(
-            query_embeddings=[query_embedding],
-            n_results=top_k,
-            where={"user_id": str(user_id)},
-            include=["documents", "metadatas", "distances"],
-        )
-
-        # Format results
-        formatted_results = []
-        ids = results.get("ids", [[]])[0]
-        documents = results.get("documents", [[]])[0]
-        metadatas = results.get("metadatas", [[]])[0]
-        distances = results.get("distances", [[]])[0]
-
-        for vector_id, document, metadata, distance in zip(ids, documents, metadatas, distances):
-            # Convert distance to similarity score (ChromaDB uses cosine distance)
-            semantic_score = max(0.0, 1.0 - float(distance or 0.0))
-            
-            formatted_results.append(
-                VectorSearchResult(
-                    id=vector_id,
-                    document=document,
-                    metadata=metadata or {},
-                    distance=float(distance or 0.0),
-                    semantic_score=semantic_score,
-                )
+            # Query ChromaDB
+            results = collection.query(
+                query_embeddings=[query_embedding],
+                n_results=top_k,
+                where={"user_id": str(user_id)},
+                include=["documents", "metadatas", "distances"],
             )
 
-        return formatted_results
+            # Format results
+            formatted_results = []
+            ids = results.get("ids", [[]])[0]
+            documents = results.get("documents", [[]])[0]
+            metadatas = results.get("metadatas", [[]])[0]
+            distances = results.get("distances", [[]])[0]
+
+            for vector_id, document, metadata, distance in zip(ids, documents, metadatas, distances):
+                # Convert distance to similarity score (ChromaDB uses cosine distance)
+                semantic_score = max(0.0, 1.0 - float(distance or 0.0))
+                
+                formatted_results.append(
+                    VectorSearchResult(
+                        id=vector_id,
+                        document=document,
+                        metadata=metadata or {},
+                        distance=float(distance or 0.0),
+                        semantic_score=semantic_score,
+                    )
+                )
+
+            return formatted_results
+
+        # Get embedding model asynchronously
+        embedding_model = await self._get_embedding_model()
+        
+        # Run blocking operations in thread pool to avoid blocking async event loop
+        return await asyncio.to_thread(_search_sync, embedding_model)
 
     def delete_documents(
         self,

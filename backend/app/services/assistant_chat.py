@@ -27,7 +27,7 @@ class AssistantChatService:
     ) -> dict:
         # Retrieve context from ChromaDB with fallback
         try:
-            search_results = self.vector_store.similarity_search(
+            search_results = await self.vector_store.similarity_search(
                 user_id=user.id,
                 query=query,
                 top_k=top_k,
@@ -84,7 +84,7 @@ class AssistantChatService:
     ) -> AsyncIterator[str]:
         # Retrieve context from ChromaDB with fallback
         try:
-            search_results = self.vector_store.similarity_search(
+            search_results = await self.vector_store.similarity_search(
                 user_id=user.id,
                 query=query,
                 top_k=top_k,
