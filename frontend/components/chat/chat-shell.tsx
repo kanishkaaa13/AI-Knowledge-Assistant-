@@ -183,6 +183,7 @@ export function ChatShell({
         onRunSemanticSearch={onRunSemanticSearch}
         onUsePrompt={onUseSuggestedPrompt}
         onSelectedDocumentIdsChange={onSelectedDocumentIdsChange}
+        onSendMessage={onSendMessage}
         className="hidden xl:flex h-full"
       />
 
@@ -223,6 +224,7 @@ export function ChatShell({
             onRunSemanticSearch={onRunSemanticSearch}
             onUsePrompt={onUseSuggestedPrompt}
             onSelectedDocumentIdsChange={onSelectedDocumentIdsChange}
+            onSendMessage={onSendMessage}
             className="flex"
           />
         </DialogContent>

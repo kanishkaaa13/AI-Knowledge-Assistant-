@@ -235,15 +235,30 @@ export function useChat() {
 
   const exportCurrentConversation = React.useCallback(async (conversationId: string) => {
     if (conversationId.startsWith("temp-")) return;
-    const content = await exportConversation(conversationId);
-    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    
+    // Check if we have messages in cache
+    const currentCache = queryClient.getQueryData<ConversationDetail>(["conversation", conversationId]);
+    if (!currentCache || !currentCache.messages || currentCache.messages.length === 0) {
+      toast.error("Start a conversation first to export");
+      return;
+    }
+
+    const dateStr = new Date().toLocaleString();
+    let text = `AI Knowledge Assistant - Conversation Export\nDate: ${dateStr}\n─────────────────────────────────────────\n\n`;
+    
+    currentCache.messages.forEach((msg) => {
+      text += `[${msg.role.toUpperCase()}] ${msg.createdAt}\n${msg.content}\n\n`;
+    });
+    text += `─────────────────────────────────────────\n`;
+
+    const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "conversation-export.md";
+    anchor.download = `conversation-export-${new Date().toISOString().slice(0, 10)}.txt`;
     anchor.click();
     URL.revokeObjectURL(url);
-  }, []);
+  }, [queryClient]);
 
   const updateSettings = React.useCallback((nextSettings: AssistantSettings) => {
     setSettings(nextSettings);
@@ -317,12 +332,19 @@ export function useChat() {
     }
   });
 
-  const sendMessage = React.useCallback(async () => {
-    const prompt = input.trim();
+  const sendMessage = React.useCallback(async (overrideText?: string | React.FormEvent | React.MouseEvent) => {
+    if (overrideText && typeof overrideText !== "string" && 'preventDefault' in (overrideText as any)) {
+      (overrideText as any).preventDefault();
+    }
+    const promptText = typeof overrideText === "string" ? overrideText : input;
+    const prompt = promptText.trim();
     if (!prompt) {
       return;
     }
 
+    if (typeof overrideText !== "string") {
+      setInput("");
+    }
     const optimisticAssistantId = createId("assistant");
     const optimisticUserMessage: ChatMessage = {
       id: createId("user"),
