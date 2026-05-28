@@ -45,53 +45,49 @@ export function ChatMessageBubble({
   }
 
   return (
-    <article className={cn("flex gap-4", isUser ? "justify-end" : "justify-start")}>
-      {!isUser ? (
-        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+    <article className={cn("flex w-full gap-4", isUser ? "justify-end" : "justify-start")}>
+      {!isUser && (
+        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/40 bg-[#1e1e1e] text-indigo-400">
           <Bot className="h-5 w-5" />
         </div>
-      ) : null}
+      )}
 
       <div
         className={cn(
-          "group relative max-w-3xl rounded-[2rem] border px-5 py-4 shadow-sm",
+          "group relative rounded-2xl px-5 py-4 shadow-sm",
           isUser
-            ? "border-primary/20 bg-primary text-primary-foreground"
-            : "border-border/60 bg-card/80 backdrop-blur"
+            ? "max-w-[70%] bg-indigo-600 text-white"
+            : "max-w-[75%] border border-border/40 bg-[#1e1e1e]"
         )}
       >
-        <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em]">
-          {isUser ? (
-            <>
-              <User2 className="h-3.5 w-3.5" />
-              {userName}
-            </>
-          ) : (
-            <>
-              <Bot className="h-3.5 w-3.5" />
-              Assistant
-            </>
-          )}
+        <div className="mb-2 flex items-center gap-2 text-xs font-semibold tracking-wider text-white/70 uppercase">
+          {isUser ? userName : "Assistant"}
         </div>
 
         <ChatMarkdown content={message.content} invert={isUser} isStreaming={message.isStreaming} />
 
-        <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-          <span className={cn(isUser ? "text-primary-foreground/70" : "")}>{message.createdAt}</span>
+        <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+          <span className={cn(isUser ? "text-indigo-200" : "text-muted-foreground")}>{message.createdAt}</span>
           <Button
             className={cn(
-              "h-8 rounded-full px-3 opacity-0 transition group-hover:opacity-100",
-              isUser ? "bg-white/10 text-primary-foreground hover:bg-white/15" : ""
+              "h-7 rounded-lg px-3 opacity-0 transition group-hover:opacity-100",
+              isUser ? "bg-black/20 text-white hover:bg-black/30" : "bg-[#2a2a2a] text-muted-foreground hover:text-white"
             )}
             size="sm"
-            variant={isUser ? "ghost" : "secondary"}
+            variant="ghost"
             onClick={() => void copyMessage()}
           >
-            {message.isStreaming ? <Check className="mr-1 h-3.5 w-3.5" /> : <Copy className="mr-1 h-3.5 w-3.5" />}
+            {message.isStreaming ? <Check className="mr-1.5 h-3 w-3" /> : <Copy className="mr-1.5 h-3 w-3" />}
             {message.isStreaming ? "Streaming" : "Copy"}
           </Button>
         </div>
       </div>
+
+      {isUser && (
+        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600/20 text-indigo-500 border border-indigo-500/20">
+          <User2 className="h-5 w-5" />
+        </div>
+      )}
     </article>
   );
 }

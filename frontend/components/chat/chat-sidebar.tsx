@@ -6,13 +6,15 @@ import {
   Download,
   Edit3,
   Heart,
-  MessageSquarePlus,
   MoreHorizontal,
+  Plus,
   Search,
-  Sparkles,
+  Settings,
   Trash2
 } from "lucide-react";
 
+import { useAuth } from "@/components/providers/auth-provider";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -63,10 +65,10 @@ function ConversationItem({
   return (
     <div
       className={cn(
-        "group rounded-3xl border p-4 transition-all duration-150",
+        "group rounded-xl border-l-4 transition-all duration-150 p-3",
         active
-          ? "border-primary/40 bg-primary/10 shadow-lg shadow-primary/5"
-          : "border-transparent bg-transparent hover:border-border/60 hover:bg-secondary/60"
+          ? "border-indigo-500 bg-[#1a1a1a] shadow-md"
+          : "border-transparent bg-transparent hover:bg-[#1a1a1a]"
       )}
     >
       <div className="flex items-start gap-3">
@@ -155,12 +157,14 @@ export function ChatSidebar({
   onHistorySearchChange: (value: string) => void;
   onRenameConversation: (conversationId: string, title: string) => Promise<void>;
   onSelectConversation: (conversationId: string) => void;
+  onOpenSettings?: () => void;
 }) {
   const [renameTarget, setRenameTarget] = React.useState<{
     id: string;
     title: string;
   } | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
+  const { user } = useAuth();
 
   // Client-side search filter on top of whatever groupedConversations provides
   const searchLower = historySearch.toLowerCase().trim();
@@ -196,25 +200,15 @@ export function ChatSidebar({
   return (
     <>
       {/* Sidebar — h-full fills the flex parent (h-screen on chat-shell root) */}
-      <aside className="flex h-full w-[300px] flex-col border-r border-border/60 bg-card/30 backdrop-blur xl:w-[320px]">
+      <aside className="flex h-full w-[300px] flex-col border-r border-border/40 bg-[#0f0f0f] xl:w-[320px]">
         {/* Header — fixed height */}
-        <div className="flex-shrink-0 space-y-4 border-b border-border/60 p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">AI Knowledge Assistant</p>
-              <p className="text-xs text-muted-foreground">Persistent conversation memory</p>
-            </div>
-          </div>
-
+        <div className="flex-shrink-0 space-y-4 p-5">
           <Button
-            className="w-full justify-start gap-2 rounded-2xl"
+            className="w-full justify-start gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:opacity-90 border-0"
             onClick={onCreateConversation}
           >
-            <MessageSquarePlus className="h-4 w-4" />
-            New chat
+            <Plus className="h-4 w-4" />
+            New Chat
           </Button>
 
           <div className="relative">
@@ -235,12 +229,12 @@ export function ChatSidebar({
               {Array.from({ length: 5 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-24 animate-pulse rounded-3xl border border-border/50 bg-secondary/40"
+                  className="h-20 animate-pulse rounded-xl bg-[#1a1a1a]"
                 />
               ))}
             </div>
           ) : !hasConversations ? (
-            <div className="rounded-3xl border border-dashed border-border/60 bg-secondary/30 p-5 text-sm text-muted-foreground">
+            <div className="rounded-xl border border-dashed border-border/40 bg-[#1a1a1a]/50 p-5 text-sm text-muted-foreground">
               {historySearch
                 ? `No conversations match "${historySearch}".`
                 : "No saved conversations yet. Start a new grounded chat and it will appear here."}
@@ -278,15 +272,26 @@ export function ChatSidebar({
         </div>
 
         {/* Footer — fixed height */}
-        <div className="flex-shrink-0 border-t border-border/60 p-5">
-          <div className="rounded-3xl bg-secondary/70 p-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Clock3 className="h-4 w-4 text-primary" />
-              Searchable memory
+        <div className="flex-shrink-0 border-t border-border/40 p-4 bg-[#0f0f0f]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-9 w-9 rounded-lg border border-border/40">
+                <AvatarFallback className="rounded-lg bg-indigo-600/20 text-indigo-500">
+                  {user?.name?.charAt(0).toUpperCase() ?? "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium leading-none">{user?.name ?? "User"}</span>
+                <span className="text-xs text-muted-foreground mt-1 truncate max-w-[140px]">
+                  {user?.email ?? ""}
+                </span>
+              </div>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Reopen, favorite, export, and organize your private knowledge conversations.
-            </p>
+            {onOpenSettings && (
+              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-[#1a1a1a]" onClick={onOpenSettings}>
+                <Settings className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            )}
           </div>
         </div>
       </aside>

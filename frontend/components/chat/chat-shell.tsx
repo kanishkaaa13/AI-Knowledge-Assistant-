@@ -99,7 +99,7 @@ export function ChatShell({
   const { user } = useAuth();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-gradient-to-b from-[#0a0a0a] to-[#111111]">
       <div className="hidden xl:flex xl:flex-shrink-0">
         <ChatSidebar
           activeConversationId={activeConversationId}
@@ -113,11 +113,12 @@ export function ChatShell({
           onHistorySearchChange={onHistorySearchChange}
           onRenameConversation={onRenameConversation}
           onSelectConversation={onSelectConversation}
+          onOpenSettings={() => onSettingsOpenChange(true)}
         />
       </div>
 
       <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="sticky top-0 z-20 border-b border-border/60 bg-background/85 backdrop-blur-xl">
+        <header className="sticky top-0 z-20 border-b border-border/40 bg-[#0a0a0a]/80 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3">
               <Button
@@ -133,8 +134,6 @@ export function ChatShell({
                 subtitle="Chat with your private knowledge assistant"
               />
             </div>
-
-            <ProfileDropdown onOpenSettings={() => onSettingsOpenChange(true)} />
           </div>
         </header>
 
@@ -145,7 +144,7 @@ export function ChatShell({
               messages={messages}
               userName={user?.name ?? "You"}
             />
-            <div className="border-t border-border/60 bg-background/90 px-4 py-4 backdrop-blur-xl sm:px-6">
+            <div className="border-t border-border/40 bg-[#0a0a0a]/90 px-4 py-4 backdrop-blur-xl sm:px-6">
               <ChatInput
                 input={input}
                 onInputChange={onInputChange}
@@ -189,6 +188,7 @@ export function ChatShell({
           onHistorySearchChange={onHistorySearchChange}
           onRenameConversation={onRenameConversation}
           onSelectConversation={onSelectConversation}
+          onOpenSettings={() => onSettingsOpenChange(true)}
         />
       </MobileSidebar>
 
