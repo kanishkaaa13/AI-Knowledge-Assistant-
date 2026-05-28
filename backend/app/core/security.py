@@ -1,19 +1,30 @@
+import logging
+import warnings
 from datetime import datetime, timedelta
 from typing import Optional
 
 import jwt
-from passlib.context import CryptContext
+
+# Suppress passlib's bcrypt version-detection warning.
+# passlib 1.7.4 calls bcrypt.__about__.__version__ which doesn't exist in
+# newer bcrypt releases — the hash/verify still works correctly.
+logging.getLogger("passlib").setLevel(logging.ERROR)
+warnings.filterwarnings("ignore", message=".*bcrypt.*", category=UserWarning)
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    from passlib.context import CryptContext
 
 from app.core.config import settings
 
 # Use bcrypt with secure defaults and explicit backend
-# This avoids the wrap bug detection issue in passlib
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto",
     bcrypt__rounds=12,
     bcrypt__ident="2b",  # Use 2b ident to avoid wrap bug detection
 )
+
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -75,18 +86,27 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-def decode_access_token(token: str) -> Optional[dict]:
+def decode_access_token(token: str, verify_exp: bool = True) -> Optional[dict]:
     """
     Decode and verify a JWT access token.
     
     Args:
         token: The JWT token to decode
+        verify_exp: Whether to verify token expiration
         
     Returns:
         Optional[dict]: The decoded payload if valid, None otherwise
     """
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=["HS256"])
+        options = {}
+        if not verify_exp:
+            options["verify_exp"] = False
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=["HS256"],
+            options=options,
+        )
         return payload
     except jwt.PyJWTError:
         return None

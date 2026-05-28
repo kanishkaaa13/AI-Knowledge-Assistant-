@@ -19,6 +19,7 @@ import {
   summarizeAssistantKnowledge
 } from "@/lib/api";
 import { streamAssistantChat } from "@/lib/chat-stream";
+import type { StreamPayload } from "@/lib/chat-stream";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type {
   AssistantQuizItem,
@@ -382,11 +383,11 @@ export function useChat() {
         await streamAssistantChat(
           {
             query: prompt,
-            model: settings.model,
+            model: settings.model as StreamPayload["model"],
             hybrid: true,
             conversation_id: conversationId,
             document_ids: selectedDocumentIds
-          },
+          } satisfies StreamPayload,
           {
             onToken(token) {
               updateAssistantMessage((current) => current + token);
@@ -401,6 +402,9 @@ export function useChat() {
                 updatedAt: new Date().toISOString(),
                 messageCount: current?.messageCount ?? 0
               }));
+            },
+            onError(message) {
+              updateAssistantMessage(() => `⚠️ ${message}`, true);
             }
           }
         );

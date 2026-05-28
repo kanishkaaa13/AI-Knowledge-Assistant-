@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 
 from fastapi import HTTPException, status
@@ -15,10 +16,14 @@ from app.repositories.document import DocumentRepository
 from app.schemas.rag import RetrievedChunk, RetrievalResponse
 from app.services.document_parser import StoredDocumentParser
 from app.services.text_chunker import DocumentChunker
-from app.services.vector_store import VectorRecord, get_vector_store_service
+from app.services.vector_store import VectorRecord, VectorSearchResult, get_vector_store_service
+
+logger = logging.getLogger(__name__)
 
 
 class RAGIngestionService:
+    """Handles indexing documents into ChromaDB (sync ingestion path)."""
+
     def __init__(self, db: Session) -> None:
         self.db = db
         self.chunk_repository = DocumentChunkRepository(db)
@@ -77,15 +82,21 @@ class RAGIngestionService:
                         **split_doc.metadata,
                         "chunk_index": index,
                         "chunk_id": vector_id,
-                        "page": split_doc.page_number,
+                        "page": str(split_doc.page_number or 1),
                     },
                 )
             )
 
         created_chunks = self.chunk_repository.bulk_create(chunk_payloads)
         try:
+            logger.info(
+                "Indexing %d chunks into ChromaDB for document %s…",
+                len(vector_records),
+                document.id,
+            )
             self.vector_store.upsert_vectors(user_id=document.user_id, records=vector_records)
         except Exception:
+            logger.exception("ChromaDB upsert failed — rolling back chunk records.")
             for chunk in created_chunks:
                 self.db.delete(chunk)
             self.db.commit()
@@ -97,6 +108,7 @@ class RAGIngestionService:
         self.db.commit()
         self.db.refresh(document)
         app_cache.delete_prefix(f"retrieval:{document.user_id}:")
+        logger.info("Document %s indexed successfully (%d chunks).", document.id, len(created_chunks))
         return created_chunks
 
     def delete_document_index(self, document_id: uuid.UUID) -> None:
@@ -118,13 +130,15 @@ class RAGIngestionService:
 
 
 class RAGRetrievalService:
+    """Retrieves relevant chunks from ChromaDB for a given query (async retrieval path)."""
+
     def __init__(self, db: Session) -> None:
         self.db = db
         self.vector_store = get_vector_store_service()
         self.document_repository = DocumentRepository(db)
         self.chunk_repository = DocumentChunkRepository(db)
 
-    def retrieve(
+    async def retrieve(
         self,
         *,
         user: User,
@@ -134,26 +148,42 @@ class RAGRetrievalService:
         document_ids: list[str] | None = None,
     ) -> RetrievalResponse:
         normalized_ids = sorted(document_ids or [])
-        cache_key = f"retrieval:{user.id}:{query}:{top_k}:{hybrid}:{','.join(normalized_ids)}"
+        cache_key = (
+            f"retrieval:{user.id}:{query}:{top_k}:{hybrid}:{','.join(normalized_ids)}"
+        )
         cached = app_cache.get(cache_key)
         if cached:
             return cached
 
         k = top_k or settings.RAG_TOP_K
-        allowed_document_ids = {uuid.UUID(item) for item in normalized_ids} if normalized_ids else set()
-        results = (
-            self.vector_store.hybrid_similarity_search(user_id=user.id, query=query, top_k=max(k, 6))
-            if hybrid
-            else self.vector_store.semantic_similarity_search(user_id=user.id, query=query, top_k=max(k, 6))
+        allowed_document_ids = (
+            {uuid.UUID(item) for item in normalized_ids} if normalized_ids else set()
         )
+
+        # Both hybrid and semantic now use the same async similarity_search
+        results: list[VectorSearchResult]
+        if hybrid:
+            results = await self.vector_store.hybrid_similarity_search(
+                user_id=user.id, query=query, top_k=max(k, 6)
+            )
+        else:
+            results = await self.vector_store.semantic_similarity_search(
+                user_id=user.id, query=query, top_k=max(k, 6)
+            )
 
         retrieved_chunks: list[RetrievedChunk] = []
         context_sections: list[str] = []
         chunk_lookup: dict[tuple[uuid.UUID, int], DocumentChunk] = {}
 
-        raw_document_ids = []
+        raw_document_ids: list[uuid.UUID] = []
         for result in results:
-            raw_document_id = uuid.UUID(result.metadata["document_id"])
+            doc_id_str = result.metadata.get("document_id", "")
+            if not doc_id_str:
+                continue
+            try:
+                raw_document_id = uuid.UUID(doc_id_str)
+            except ValueError:
+                continue
             if allowed_document_ids and raw_document_id not in allowed_document_ids:
                 continue
             raw_document_ids.append(raw_document_id)
@@ -167,13 +197,19 @@ class RAGRetrievalService:
             chunk_lookup[(chunk.document_id, chunk.chunk_index)] = chunk
 
         for result in results:
-            document_id = uuid.UUID(result.metadata["document_id"])
+            doc_id_str = result.metadata.get("document_id", "")
+            if not doc_id_str:
+                continue
+            try:
+                document_id = uuid.UUID(doc_id_str)
+            except ValueError:
+                continue
             if allowed_document_ids and document_id not in allowed_document_ids:
                 continue
             db_document = documents.get(document_id)
             if not db_document:
                 continue
-            chunk_index = int(result.metadata["chunk_index"])
+            chunk_index = int(result.metadata.get("chunk_index", 0))
             chunk = chunk_lookup.get((document_id, chunk_index))
             if not chunk:
                 continue

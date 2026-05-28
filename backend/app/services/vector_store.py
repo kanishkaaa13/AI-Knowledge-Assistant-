@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import chromadb
 from chromadb import PersistentClient
 from sentence_transformers import SentenceTransformer
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -25,102 +28,166 @@ class VectorSearchResult:
     metadata: dict
     distance: float
     semantic_score: float
+    # Derived fields (no BM25 yet — keyword score defaults to 0)
+    keyword_score: float = field(default=0.0)
+
+    @property
+    def combined_score(self) -> float:
+        """Weighted combination of semantic + keyword scores."""
+        return 0.7 * self.semantic_score + 0.3 * self.keyword_score
 
 
 class VectorStoreService:
-    """Vector store service using ChromaDB and Sentence-Transformers for semantic search."""
+    """
+    Vector store service using ChromaDB and Sentence-Transformers for semantic search.
 
-    def __init__(self, persist_directory: str = "storage/chromadb", model_name: str = "all-MiniLM-L6-v2"):
-        """
-        Initialize the vector store service.
+    Embedding model is loaded lazily — synchronously for sync callers, asynchronously
+    for async callers — to avoid blocking the event loop on first use.
+    """
 
-        Args:
-            persist_directory: Path to store ChromaDB data
-            model_name: HuggingFace model name for embeddings
-        """
+    def __init__(
+        self,
+        persist_directory: str = "storage/chromadb",
+        model_name: str = "all-MiniLM-L6-v2",
+    ) -> None:
         persist_path = Path(persist_directory)
         persist_path.mkdir(parents=True, exist_ok=True)
-        
-        self.client: PersistentClient = chromadb.PersistentClient(path=str(persist_path))
-        self._embedding_model: SentenceTransformer | None = None
-        self.model_name = model_name
 
-    async def _get_embedding_model(self) -> SentenceTransformer:
-        """Lazy load the embedding model only when needed, in a thread pool."""
+        self.client: PersistentClient = chromadb.PersistentClient(path=str(persist_path))
+        self.model_name = model_name
+        self._embedding_model: SentenceTransformer | None = None
+
+    # ------------------------------------------------------------------
+    # Embedding model loading — sync and async variants
+    # ------------------------------------------------------------------
+
+    def _get_embedding_model_sync(self) -> SentenceTransformer:
+        """Load (or return cached) embedding model synchronously.
+
+        Safe to call from regular (blocking) code paths such as document
+        upload post-processing or the threadpool inside ``similarity_search``.
+        """
         if self._embedding_model is None:
-            def _load_model():
-                return SentenceTransformer(self.model_name)
-            self._embedding_model = await asyncio.to_thread(_load_model)
+            logger.info("Loading sentence-transformer model '%s' (sync)…", self.model_name)
+            self._embedding_model = SentenceTransformer(self.model_name)
+            logger.info("Embedding model loaded.")
         return self._embedding_model
 
+    async def _get_embedding_model_async(self) -> SentenceTransformer:
+        """Load (or return cached) embedding model without blocking the event loop."""
+        if self._embedding_model is None:
+            logger.info("Loading sentence-transformer model '%s' (async)…", self.model_name)
+            self._embedding_model = await asyncio.to_thread(
+                SentenceTransformer, self.model_name
+            )
+            logger.info("Embedding model loaded.")
+        return self._embedding_model
+
+    # ------------------------------------------------------------------
+    # Collection helpers
+    # ------------------------------------------------------------------
+
     def _collection_name(self, user_id: uuid.UUID) -> str:
-        """
-        Generate user-isolated collection name.
-
-        Args:
-            user_id: User UUID
-
-        Returns:
-            Collection name in format 'user_collection_{user_id}'
-        """
         return f"user_collection_{user_id}"
 
     def _get_or_create_collection(self, user_id: uuid.UUID):
-        """
-        Get or create user-isolated collection.
+        return self.client.get_or_create_collection(name=self._collection_name(user_id))
 
-        Args:
-            user_id: User UUID
-
-        Returns:
-            ChromaDB collection
-        """
-        collection_name = self._collection_name(user_id)
-        return self.client.get_or_create_collection(name=collection_name)
+    # ------------------------------------------------------------------
+    # Write operations (synchronous — called from upload/ingestion paths)
+    # ------------------------------------------------------------------
 
     def add_documents_to_vector_store(
         self,
         user_id: uuid.UUID,
         chunks_list: list[dict[str, Any]],
     ) -> None:
-        """
-        Vectorize text chunks and save to ChromaDB with metadata.
+        """Vectorize text chunks and upsert into ChromaDB.
 
-        Args:
-            user_id: User UUID for collection isolation
-            chunks_list: List of dicts with 'id', 'content', and metadata fields
-                        Expected metadata: 'document_id', 'filename', 'chunk_index'
+        This is a **synchronous** method.  Call it from a threadpool or from
+        regular (non-async) ingestion code.  Do NOT ``await`` it.
         """
         if not chunks_list:
             return
 
+        model = self._get_embedding_model_sync()
         collection = self._get_or_create_collection(user_id)
 
-        # Extract data
         ids = [str(chunk.get("id", "")) for chunk in chunks_list]
         documents = [chunk.get("content", "") for chunk in chunks_list]
-        
-        # Prepare metadata with required fields
-        metadatas = []
+
+        metadatas: list[dict] = []
         for chunk in chunks_list:
             metadata = dict(chunk.get("metadata", {}))
-            # Ensure required metadata fields
             metadata["user_id"] = str(user_id)
             metadata.setdefault("document_id", chunk.get("document_id", ""))
             metadata.setdefault("filename", chunk.get("filename", ""))
             metadata.setdefault("chunk_index", chunk.get("chunk_index", 0))
+            # Stringify any list/dict values — ChromaDB only supports scalar metadata
+            for k, v in list(metadata.items()):
+                if not isinstance(v, (str, int, float, bool)):
+                    metadata[k] = str(v)
             metadatas.append(metadata)
 
-        # Generate embeddings
-        embeddings = self.embedding_model.encode(documents, show_progress_bar=False).tolist()
+        logger.debug(
+            "Generating embeddings for %d chunks (user=%s)…", len(documents), user_id
+        )
+        embeddings = model.encode(documents, show_progress_bar=False).tolist()
 
-        # Upsert to ChromaDB
         collection.upsert(
             ids=ids,
             documents=documents,
             metadatas=metadatas,
             embeddings=embeddings,
         )
+        logger.info("Upserted %d vectors for user %s.", len(ids), user_id)
+
+    def upsert_vectors(self, user_id: uuid.UUID, records: list[VectorRecord]) -> None:
+        """Upsert pre-built VectorRecord objects into the user's collection."""
+        if not records:
+            return
+
+        chunks_list = [
+            {
+                "id": r.id,
+                "content": r.document,
+                "metadata": r.metadata,
+                "document_id": r.metadata.get("document_id", ""),
+                "filename": r.metadata.get("filename", ""),
+                "chunk_index": r.metadata.get("chunk_index", 0),
+            }
+            for r in records
+        ]
+        self.add_documents_to_vector_store(user_id, chunks_list)
+
+    def delete_vectors(self, user_id: uuid.UUID, ids: list[str]) -> None:
+        """Delete specific vectors by ID."""
+        if not ids:
+            return
+        collection = self._get_or_create_collection(user_id)
+        collection.delete(ids=ids)
+
+    def delete_documents(
+        self,
+        user_id: uuid.UUID,
+        document_ids: list[str] | None = None,
+    ) -> None:
+        """Delete all chunks belonging to the given document IDs."""
+        if not document_ids:
+            return
+        collection = self._get_or_create_collection(user_id)
+        collection.delete(where={"document_id": {"$in": document_ids}})
+
+    def delete_collection(self, user_id: uuid.UUID) -> None:
+        """Delete the entire user collection."""
+        try:
+            self.client.delete_collection(name=self._collection_name(user_id))
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    # Read operations (async — called from API route handlers)
+    # ------------------------------------------------------------------
 
     async def similarity_search(
         self,
@@ -129,152 +196,99 @@ class VectorStoreService:
         top_k: int = 4,
         document_ids: list[str] | None = None,
     ) -> list[VectorSearchResult]:
-        """
-        Perform semantic similarity search on user's collection.
+        """Semantic similarity search — async, non-blocking."""
 
-        Args:
-            user_id: User UUID for collection isolation
-            query: Search query text
-            top_k: Number of top results to return
-            document_ids: Optional list of document IDs to restrict search
-
-        Returns:
-            List of VectorSearchResult with document, metadata, and scores
-        """
-        def _search_sync(embedding_model):
+        def _search_sync(model: SentenceTransformer) -> list[VectorSearchResult]:
             collection = self._get_or_create_collection(user_id)
 
-            # Generate query embedding
-            query_embedding = embedding_model.encode(query, show_progress_bar=False).tolist()
+            # Verify the collection has data
+            count = collection.count()
+            if count == 0:
+                logger.debug("Collection for user %s is empty.", user_id)
+                return []
 
-            # Prepare where clause
-            where_clause = {"user_id": str(user_id)}
+            query_embedding = model.encode(query, show_progress_bar=False).tolist()
+
+            where_clause: dict = {"user_id": str(user_id)}
             if document_ids:
                 if len(document_ids) == 1:
-                    where_clause = {"$and": [{"user_id": str(user_id)}, {"document_id": document_ids[0]}]}
+                    where_clause = {
+                        "$and": [
+                            {"user_id": str(user_id)},
+                            {"document_id": document_ids[0]},
+                        ]
+                    }
                 else:
-                    where_clause = {"$and": [{"user_id": str(user_id)}, {"document_id": {"$in": document_ids}}]}
+                    where_clause = {
+                        "$and": [
+                            {"user_id": str(user_id)},
+                            {"document_id": {"$in": document_ids}},
+                        ]
+                    }
 
-            # Query ChromaDB
+            # Clamp n_results to the actual collection size
+            n_results = min(top_k, count)
+
             results = collection.query(
                 query_embeddings=[query_embedding],
-                n_results=top_k,
+                n_results=n_results,
                 where=where_clause,
                 include=["documents", "metadatas", "distances"],
             )
 
-            # Format results
-            formatted_results = []
-            ids = results.get("ids", [[]])[0]
-            documents = results.get("documents", [[]])[0]
-            metadatas = results.get("metadatas", [[]])[0]
-            distances = results.get("distances", [[]])[0]
+            formatted: list[VectorSearchResult] = []
+            ids_list = results.get("ids", [[]])[0]
+            docs_list = results.get("documents", [[]])[0]
+            meta_list = results.get("metadatas", [[]])[0]
+            dist_list = results.get("distances", [[]])[0]
 
-            for vector_id, document, metadata, distance in zip(ids, documents, metadatas, distances):
-                # Convert distance to similarity score (ChromaDB uses cosine distance)
-                semantic_score = max(0.0, 1.0 - float(distance or 0.0))
-                
-                formatted_results.append(
+            for vid, doc, meta, dist in zip(ids_list, docs_list, meta_list, dist_list):
+                semantic_score = max(0.0, 1.0 - float(dist or 0.0))
+                formatted.append(
                     VectorSearchResult(
-                        id=vector_id,
-                        document=document,
-                        metadata=metadata or {},
-                        distance=float(distance or 0.0),
+                        id=vid,
+                        document=doc,
+                        metadata=meta or {},
+                        distance=float(dist or 0.0),
                         semantic_score=semantic_score,
                     )
                 )
+            return formatted
 
-            return formatted_results
+        model = await self._get_embedding_model_async()
+        return await asyncio.to_thread(_search_sync, model)
 
-        # Get embedding model asynchronously
-        embedding_model = await self._get_embedding_model()
-        
-        # Run blocking operations in thread pool to avoid blocking async event loop
-        return await asyncio.to_thread(_search_sync, embedding_model)
-
-    def upsert_vectors(self, user_id: uuid.UUID, records: list[VectorRecord]) -> None:
-        """Upsert vector records to the user collection."""
-        if not records:
-            return
-            
-        chunks_list = []
-        for r in records:
-            chunks_list.append({
-                "id": r.id,
-                "content": r.document,
-                "metadata": r.metadata,
-                "document_id": r.metadata.get("document_id", ""),
-                "filename": r.metadata.get("filename", ""),
-                "chunk_index": r.metadata.get("chunk_index", 0),
-            })
-        self.add_documents_to_vector_store(user_id, chunks_list)
-        
-    def delete_vectors(self, user_id: uuid.UUID, ids: list[str]) -> None:
-        """Delete specific vectors by their ID."""
-        if not ids:
-            return
-        collection = self._get_or_create_collection(user_id)
-        collection.delete(ids=ids)
-
-    def hybrid_similarity_search(
+    # Kept for API compatibility — delegates to similarity_search
+    async def hybrid_similarity_search(
         self,
         user_id: uuid.UUID,
         query: str,
         top_k: int = 4,
         document_ids: list[str] | None = None,
     ) -> list[VectorSearchResult]:
-        """Performs a hybrid semantic search. For now, maps directly to semantic search in ChromaDB."""
-        # For a full hybrid search, BM25 should be combined with ChromaDB, but this stub unblocks the pipeline.
-        return asyncio.run(self.similarity_search(user_id, query, top_k, document_ids))
+        """Hybrid search (currently pure semantic; BM25 not yet integrated)."""
+        return await self.similarity_search(user_id, query, top_k, document_ids)
 
-    def semantic_similarity_search(
+    async def semantic_similarity_search(
         self,
         user_id: uuid.UUID,
         query: str,
         top_k: int = 4,
         document_ids: list[str] | None = None,
     ) -> list[VectorSearchResult]:
-        """Wrapper for semantic search to fulfill interface expectations."""
-        return asyncio.run(self.similarity_search(user_id, query, top_k, document_ids))
+        """Pure semantic search alias."""
+        return await self.similarity_search(user_id, query, top_k, document_ids)
 
-    def delete_documents(
-        self,
-        user_id: uuid.UUID,
-        document_ids: list[str] | None = None,
-    ) -> None:
-        """
-        Delete documents from user's collection.
 
-        Args:
-            user_id: User UUID for collection isolation
-            document_ids: List of document IDs to delete (optional)
-        """
-        if not document_ids:
-            return
-
-        collection = self._get_or_create_collection(user_id)
-        collection.delete(where={"document_id": {"$in": document_ids}})
-
-    def delete_collection(self, user_id: uuid.UUID) -> None:
-        """
-        Delete entire user collection.
-
-        Args:
-            user_id: User UUID for collection isolation
-        """
-        collection_name = self._collection_name(user_id)
-        try:
-            self.client.delete_collection(name=collection_name)
-        except Exception:
-            # Collection might not exist
-            pass
-
+# ---------------------------------------------------------------------------
+# Singleton
+# ---------------------------------------------------------------------------
 
 _vector_store_service: VectorStoreService | None = None
 
 
 def get_vector_store_service() -> VectorStoreService:
-    """Get singleton instance of VectorStoreService."""
+    """Return the application-wide singleton VectorStoreService."""
     global _vector_store_service
     if _vector_store_service is None:
         _vector_store_service = VectorStoreService()

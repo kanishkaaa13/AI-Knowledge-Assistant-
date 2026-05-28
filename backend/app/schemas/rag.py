@@ -1,9 +1,12 @@
 import uuid
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 
 class RetrievedChunk(BaseModel):
+    """Full chunk record returned by the /retrieve endpoint (DB-hydrated)."""
+
     chunk_id: uuid.UUID
     document_id: uuid.UUID
     document_title: str
@@ -15,6 +18,13 @@ class RetrievedChunk(BaseModel):
     keyword_score: float
     chunk_index: int
     upload_timestamp: str
+
+
+class ChatChunk(BaseModel):
+    """Lightweight chunk returned by /query and /chat/stream (no DB lookup required)."""
+
+    content: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class RetrievalResponse(BaseModel):
@@ -37,7 +47,7 @@ class AssistantQueryResponse(BaseModel):
     query: str
     answer: str
     context: str
-    chunks: list[RetrievedChunk]
+    chunks: list[ChatChunk]          # lightweight — no DB hydration needed
     prompt: str
     model: str
     conversation_id: uuid.UUID

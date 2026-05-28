@@ -109,14 +109,42 @@ async def upload_document(
             file_bytes=file_bytes,
             mime_type=file.content_type,
         )
-        
-        # Return the document with chunk count info
+
+        # Fetch the saved document ORM object
         document = db.get(UploadedDocument, processed.document_id)
+        if document is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Document record not found after processing.",
+            )
+
+        # Index into ChromaDB so the document is immediately searchable
+        try:
+            RAGIngestionService(db).index_document(document)
+        except Exception:
+            import logging as _logging
+            _logging.getLogger(__name__).exception(
+                "ChromaDB indexing failed for document %s — document saved but not searchable.",
+                document.id,
+            )
+            document.status = "error"
+            db.add(document)
+            db.commit()
+            db.refresh(document)
+
         return UploadedDocumentRead.model_validate(document)
+    except HTTPException:
+        raise
     except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception:
+        import logging as _logging
+        _logging.getLogger(__name__).exception(
+            "Unexpected error during document upload for user %s.", current_user.id
+        )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while uploading the document.",
         )
 
 

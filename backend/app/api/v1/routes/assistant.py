@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -30,6 +31,8 @@ from app.services.assistant_features import AssistantFeatureService
 from app.services.chat_memory import ChatMemoryService
 from app.services.rag_pipeline import RAGRetrievalService
 from app.services.vector_store import get_vector_store_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -78,7 +81,8 @@ async def retrieve_context(
 ) -> RetrievalResponse:
     apply_rate_limit(request, scope="assistant-retrieve", limit=30, user_id=str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
-    return RAGRetrievalService(db).retrieve(
+    # retrieve() is now async — await it
+    return await RAGRetrievalService(db).retrieve(
         user=current_user,
         query=payload.query,
         top_k=payload.top_k,
@@ -133,24 +137,29 @@ async def stream_assistant_chat(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
-    try:
-        apply_rate_limit(request, scope="assistant-stream", limit=30, user_id=str(current_user.id))
-        payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
-        memory = ChatMemoryService(db)
-        conversation = memory.get_or_create_conversation(
-            user=current_user,
-            conversation_id=payload.conversation_id,
-            initial_user_message=payload.query,
-        )
-        if payload.conversation_id is not None:
-            memory.append_message(
-                conversation=conversation,
-                role="user",
-                content=payload.query,
-            )
+    apply_rate_limit(request, scope="assistant-stream", limit=30, user_id=str(current_user.id))
+    payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
 
-        async def event_stream():
-            full_answer = ""
+    memory = ChatMemoryService(db)
+    conversation = memory.get_or_create_conversation(
+        user=current_user,
+        conversation_id=payload.conversation_id,
+        initial_user_message=payload.query,
+    )
+    if payload.conversation_id is not None:
+        memory.append_message(
+            conversation=conversation,
+            role="user",
+            content=payload.query,
+        )
+
+    # Snapshot IDs before entering the generator (avoid closed-session access)
+    conversation_id = conversation.id
+    conversation_title = conversation.title
+
+    async def event_stream():
+        full_answer = ""
+        try:
             assistant_stream = AssistantChatService(get_vector_store_service()).stream_answer(
                 user=current_user,
                 query=payload.query,
@@ -165,35 +174,53 @@ async def stream_assistant_chat(
                     continue
 
                 payload_json = chunk[6:].strip()
-                data = json.loads(payload_json)
+                try:
+                    data = json.loads(payload_json)
+                except json.JSONDecodeError:
+                    logger.warning("Skipping malformed SSE chunk: %r", chunk)
+                    continue
 
                 if data.get("type") == "token":
                     full_answer += data.get("content", "")
                 elif data.get("type") == "done":
+                    # Persist the completed response in a fresh DB session
                     from app.db.session import db_manager
                     from app.models.conversation import Conversation
+
                     with db_manager.session_factory() as local_db:
                         local_memory = ChatMemoryService(local_db)
-                        local_conversation = local_db.get(Conversation, conversation.id)
-                        updated_conversation = local_memory.sync_conversation_after_response(
-                            conversation=local_conversation,
-                            user_message=payload.query,
-                            assistant_message=full_answer.strip() or "I cannot find that information in your uploaded documents.",
-                        )
-                        data["conversation_id"] = str(updated_conversation.id)
-                        data["conversation_title"] = updated_conversation.title
+                        local_conversation = local_db.get(Conversation, conversation_id)
+                        if local_conversation:
+                            final_answer = full_answer.strip() or "I cannot find that information in your uploaded documents."
+                            updated = local_memory.sync_conversation_after_response(
+                                conversation=local_conversation,
+                                user_message=payload.query,
+                                assistant_message=final_answer,
+                            )
+                            data["conversation_id"] = str(updated.id)
+                            data["conversation_title"] = updated.title
+                        else:
+                            data["conversation_id"] = str(conversation_id)
+                            data["conversation_title"] = conversation_title
                 elif data.get("type") == "context":
-                    data["conversation_id"] = str(conversation.id)
-                    data["conversation_title"] = conversation.title
+                    data["conversation_id"] = str(conversation_id)
+                    data["conversation_title"] = conversation_title
 
                 yield f"data: {json.dumps(data)}\n\n"
 
-        return StreamingResponse(event_stream(), media_type="text/event-stream")
-    except Exception as e:
-        import traceback
-        print("CRITICAL CHAT EXCEPTION ERROR:")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        except Exception:
+            logger.exception("Unhandled error in SSE event_stream for user %s.", current_user.id)
+            error_payload = json.dumps({"type": "error", "message": "An internal error occurred."})
+            yield f"data: {error_payload}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/summaries", response_model=AssistantSummaryResponse)
@@ -259,25 +286,24 @@ async def semantic_document_search(
 ) -> SemanticDocumentSearchResponse:
     apply_rate_limit(request, scope="assistant-document-search", limit=30, user_id=str(current_user.id))
     safe_query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
-    
-    # Use VectorStoreService for semantic search
+
     vector_store = get_vector_store_service()
-    search_results = vector_store.similarity_search(
+    search_results = await vector_store.similarity_search(
         user_id=current_user.id,
         query=safe_query,
         top_k=8,
     )
-    
+
     seen: set[str] = set()
     results: list[SemanticDocumentSearchItem] = []
     repository = DocumentRepository(db)
-    
+
     for result in search_results:
         document_id = result.metadata.get("document_id", "")
         if not document_id or document_id in seen:
             continue
         seen.add(document_id)
-        
+
         try:
             doc_uuid = uuid.UUID(document_id)
             document = repository.get_by_user(doc_uuid, current_user.id)
@@ -288,11 +314,16 @@ async def semantic_document_search(
                     filename=result.metadata.get("filename", "unknown"),
                     excerpt=result.document[:220],
                     score=result.semantic_score,
-                    tags=[item.strip() for item in (document.tags or "").split(",") if item.strip()] if document else [],
+                    tags=[
+                        item.strip()
+                        for item in (document.tags or "").split(",")
+                        if item.strip()
+                    ]
+                    if document
+                    else [],
                 )
             )
         except (ValueError, TypeError):
-            # Skip invalid document IDs
             continue
-    
+
     return SemanticDocumentSearchResponse(results=results)

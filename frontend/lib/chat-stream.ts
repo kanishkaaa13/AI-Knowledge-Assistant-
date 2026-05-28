@@ -1,76 +1,99 @@
 import { env } from "@/lib/env";
 
-function readCookie(name: string) {
-  if (typeof document === "undefined") {
-    return undefined;
-  }
+export interface StreamPayload {
+  query: string;
+  model: "llama3" | "mistral";
+  top_k?: number;
+  hybrid?: boolean;
+  conversation_id?: string;
+  document_ids?: string[];
+}
 
-  const match = document.cookie
-    .split("; ")
-    .find((entry) => entry.startsWith(`${name}=`));
-  return match?.split("=")[1];
+export interface StreamHandlers {
+  onContext?: (data: any) => void;
+  onToken?: (token: string) => void;
+  onDone?: (data: any) => void;
+  onError?: (message: string) => void;
 }
 
 export async function streamAssistantChat(
-  payload: {
-    query: string;
-    model: "llama3" | "mistral";
-    top_k?: number;
-    hybrid?: boolean;
-    conversation_id?: string;
-    document_ids?: string[];
-  },
-  handlers: {
-    onContext?: (data: any) => void;
-    onToken?: (token: string) => void;
-    onDone?: (data: any) => void;
-  }
-) {
-  const response = await fetch(`${env.NEXT_PUBLIC_API_BASE_URL}/assistant/chat/stream`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRF-Token": decodeURIComponent(readCookie("csrf_access_token") ?? "")
-    },
-    body: JSON.stringify(payload)
-  });
+  payload: StreamPayload,
+  handlers: StreamHandlers,
+  signal?: AbortSignal
+): Promise<void> {
+  const response = await fetch(
+    `${env.NEXT_PUBLIC_API_BASE_URL}/assistant/chat/stream`,
+    {
+      method: "POST",
+      credentials: "include", // send httpOnly access_token cookie
+      headers: {
+        "Content-Type": "application/json"
+        // No CSRF header — backend uses httpOnly JWT cookies only
+      },
+      body: JSON.stringify(payload),
+      signal
+    }
+  );
 
   if (!response.ok || !response.body) {
-    const errorText = await response.text();
-    throw new Error(errorText || "Unable to stream assistant response.");
+    let errorMessage = `HTTP ${response.status}`;
+    try {
+      const errorBody = await response.json();
+      errorMessage = errorBody?.detail ?? errorMessage;
+    } catch {
+      errorMessage = (await response.text()) || errorMessage;
+    }
+    throw new Error(errorMessage);
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) {
-      break;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split("\n\n");
+      buffer = events.pop() ?? "";
+
+      for (const event of events) {
+        const line = event.split("\n").find((entry) => entry.startsWith("data: "));
+        if (!line) {
+          continue;
+        }
+
+        let data: any;
+        try {
+          data = JSON.parse(line.slice(6));
+        } catch {
+          console.warn("[stream] Failed to parse SSE event:", line);
+          continue;
+        }
+
+        switch (data.type) {
+          case "context":
+            handlers.onContext?.(data);
+            break;
+          case "token":
+            handlers.onToken?.(data.content ?? "");
+            break;
+          case "done":
+            handlers.onDone?.(data);
+            break;
+          case "error":
+            handlers.onError?.(data.message ?? "An error occurred in the stream.");
+            break;
+          default:
+            break;
+        }
+      }
     }
-
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
-
-    for (const event of events) {
-      const line = event.split("\n").find((entry) => entry.startsWith("data: "));
-      if (!line) {
-        continue;
-      }
-
-      const data = JSON.parse(line.slice(6));
-      if (data.type === "context") {
-        handlers.onContext?.(data);
-      }
-      if (data.type === "token") {
-        handlers.onToken?.(data.content);
-      }
-      if (data.type === "done") {
-        handlers.onDone?.(data);
-      }
-    }
+  } finally {
+    reader.releaseLock();
   }
 }

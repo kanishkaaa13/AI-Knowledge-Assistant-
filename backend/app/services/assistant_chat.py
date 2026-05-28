@@ -1,16 +1,27 @@
 from __future__ import annotations
 
-import httpx
 import json
+import logging
 import traceback
 from collections.abc import AsyncIterator
 
+import httpx
 from fastapi import HTTPException
 
 from app.models.user import User
 from app.services.ollama_llm import OllamaLLMService
 from app.services.prompt_builder import build_rag_prompt
-from app.services.vector_store import VectorStoreService
+from app.services.vector_store import VectorSearchResult, VectorStoreService
+
+logger = logging.getLogger(__name__)
+
+
+def _format_chunks(results: list[VectorSearchResult]) -> list[dict]:
+    """Convert VectorSearchResult list to ChatChunk-compatible dicts."""
+    return [
+        {"content": result.document, "metadata": result.metadata}
+        for result in results
+    ]
 
 
 class AssistantChatService:
@@ -27,7 +38,7 @@ class AssistantChatService:
         top_k: int = 4,
         document_ids: list[str] | None = None,
     ) -> dict:
-        # Retrieve context from ChromaDB with fallback
+        # Retrieve context from ChromaDB
         try:
             search_results = await self.vector_store.similarity_search(
                 user_id=user.id,
@@ -35,10 +46,11 @@ class AssistantChatService:
                 top_k=top_k,
                 document_ids=document_ids,
             )
-        except Exception as e:
-            print("WARNING: ChromaDB retrieval failed:")
-            traceback.print_exc()
+        except Exception:
+            logger.exception("ChromaDB retrieval failed — falling back to empty context.")
             search_results = []
+
+        chunks = _format_chunks(search_results)
 
         if not search_results:
             answer = "I cannot find that information in your uploaded documents."
@@ -46,32 +58,30 @@ class AssistantChatService:
                 "query": query,
                 "answer": answer,
                 "context": "",
-                "chunks": [],
+                "chunks": chunks,
                 "prompt": "",
                 "model": model,
             }
 
-        # Build context from retrieved chunks
-        context = "\n\n".join([result.document for result in search_results])
-        
-        # Build system prompt with strict context injection
+        context = "\n\n".join([r.document for r in search_results])
         prompt = build_rag_prompt(query=query, context=context)
-        
-        # Generate answer from Ollama with fallback
+
         try:
             answer = await self.ollama_service.generate(prompt=prompt, model=model)
             if not answer.strip():
                 answer = "I cannot find that information in your uploaded documents."
-        except Exception as e:
-            print("WARNING: Ollama generation failed:")
-            traceback.print_exc()
-            answer = f"🤖 Chat Connection Mock Active: I received your message '{query}', but I cannot communicate with your local Ollama instance right now. Please make sure you have run 'ollama run llama3' in your terminal!"
+        except Exception:
+            logger.exception("Ollama generation failed.")
+            answer = (
+                "🤖 Unable to reach the local Ollama service. "
+                "Make sure you have run `ollama run llama3` in your terminal."
+            )
 
         return {
             "query": query,
             "answer": answer,
             "context": context,
-            "chunks": [{"content": result.document, "metadata": result.metadata} for result in search_results],
+            "chunks": chunks,
             "prompt": prompt,
             "model": model,
         }
@@ -85,7 +95,7 @@ class AssistantChatService:
         top_k: int = 4,
         document_ids: list[str] | None = None,
     ) -> AsyncIterator[str]:
-        # Retrieve context from ChromaDB with fallback
+        # Retrieve context
         try:
             search_results = await self.vector_store.similarity_search(
                 user_id=user.id,
@@ -93,58 +103,60 @@ class AssistantChatService:
                 top_k=top_k,
                 document_ids=document_ids,
             )
-        except Exception as e:
-            print("WARNING: ChromaDB retrieval failed:")
-            traceback.print_exc()
+        except Exception:
+            logger.exception("ChromaDB retrieval failed during streaming.")
             search_results = []
 
-        # Build context from retrieved chunks
-        context = "\n\n".join([result.document for result in search_results])
-        
-        # Send context metadata to frontend
+        context = "\n\n".join([r.document for r in search_results])
+        chunks = _format_chunks(search_results)
+
+        # Always send context metadata first so the client knows what sources were used
         meta_payload = {
             "type": "context",
             "context": context,
-            "chunks": [{"content": result.document, "metadata": result.metadata} for result in search_results],
+            "chunks": chunks,
             "model": model,
         }
         yield f"data: {json.dumps(meta_payload)}\n\n"
 
         if not search_results:
-            unknown = "I cannot find that information in your uploaded documents."
-            yield f"data: {json.dumps({'type': 'token', 'content': unknown})}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'answer': unknown, 'prompt': ''})}\n\n"
+            no_doc_msg = "I cannot find that information in your uploaded documents."
+            yield f"data: {json.dumps({'type': 'token', 'content': no_doc_msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'answer': no_doc_msg, 'prompt': ''})}\n\n"
             return
 
-        # Build system prompt with strict context injection
         prompt = build_rag_prompt(query=query, context=context)
         full_answer = ""
 
-        # Check Ollama availability before streaming
+        # Check Ollama availability
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(self.ollama_service.base_url, timeout=2.0)
+                response = await client.get(self.ollama_service.base_url, timeout=3.0)
                 if response.status_code != 200:
-                    raise ValueError("Ollama engine offline")
+                    raise ValueError("Ollama returned non-200")
         except Exception:
-            print("WARNING: Ollama availability check failed")
-            traceback.print_exc()
-            diagnostic_message = "🤖 System Note: Your backend cannot talk to Ollama. Ensure the desktop app is open and you have run 'ollama pull llama3' in your terminal."
-            yield f"data: {json.dumps({'type': 'token', 'content': diagnostic_message})}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'answer': diagnostic_message, 'prompt': prompt})}\n\n"
+            logger.warning("Ollama availability check failed — returning diagnostic message.")
+            msg = (
+                "🤖 Unable to reach the local Ollama service. "
+                "Ensure the desktop app is open and run `ollama pull llama3` in your terminal."
+            )
+            yield f"data: {json.dumps({'type': 'token', 'content': msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'answer': msg, 'prompt': prompt})}\n\n"
             return
 
-        # Stream tokens from Ollama with fallback
+        # Stream tokens
         try:
             async for token in self.ollama_service.stream_generate(prompt=prompt, model=model):
                 full_answer += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
-        except Exception as e:
-            print("WARNING: Ollama streaming failed:")
-            traceback.print_exc()
-            fallback_message = f"🤖 Chat Connection Mock Active: I received your message '{query}', but I cannot communicate with your local Ollama instance right now. Please make sure you have run 'ollama run llama3' in your terminal!"
-            yield f"data: {json.dumps({'type': 'token', 'content': fallback_message})}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'answer': fallback_message, 'prompt': prompt})}\n\n"
+        except Exception:
+            logger.exception("Ollama streaming failed.")
+            fallback = (
+                "🤖 Lost connection to Ollama mid-stream. "
+                "Please try again or restart the Ollama service."
+            )
+            yield f"data: {json.dumps({'type': 'token', 'content': fallback})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'answer': fallback, 'prompt': prompt})}\n\n"
             return
 
         final_answer = full_answer.strip() or "I cannot find that information in your uploaded documents."
