@@ -172,12 +172,13 @@ async def stream_assistant_chat(
     # Snapshot IDs before entering the generator (avoid closed-session access)
     conversation_id = conversation.id
     conversation_title = conversation.title
+    user_id = current_user.id
 
     async def event_stream():
         full_answer = ""
         try:
             assistant_stream = AssistantChatService(get_vector_store_service()).stream_answer(
-                user=current_user,
+                user_id=user_id,
                 query=payload.query,
                 model=payload.model,
                 top_k=payload.top_k or 4,

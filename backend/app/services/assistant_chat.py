@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import traceback
+import uuid
 from collections.abc import AsyncIterator
 
 import httpx
@@ -97,7 +98,7 @@ class AssistantChatService:
     async def stream_answer(
         self,
         *,
-        user: User,
+        user_id: uuid.UUID,
         query: str,
         model: str,
         top_k: int = 4,
@@ -133,7 +134,7 @@ class AssistantChatService:
         # Retrieve context
             try:
                 search_results = await self.vector_store.similarity_search(
-                    user_id=user.id,
+                    user_id=user_id,
                     query=query,
                     top_k=top_k,
                     document_ids=document_ids,
