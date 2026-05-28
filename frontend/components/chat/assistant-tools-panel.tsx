@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { BookOpenText, Download, FileText, Lightbulb, SearchCode, Sparkles, Trash2, Cpu, CheckSquare, Square, UploadCloud } from "lucide-react";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import type { AssistantQuizItem, SemanticDocumentSearchItem } from "@/types/api";
@@ -29,6 +30,7 @@ export function AssistantToolsPanel({
   onRunSemanticSearch,
   onUsePrompt,
   onSelectedDocumentIdsChange,
+  onSendMessage,
   className
 }: {
   generatedSummary: string | null;
@@ -43,6 +45,7 @@ export function AssistantToolsPanel({
   onRunSemanticSearch: () => Promise<void>;
   onUsePrompt: (prompt: string) => void;
   onSelectedDocumentIdsChange: (ids: string[]) => void;
+  onSendMessage?: (text: string) => Promise<void>;
   className?: string;
 }) {
   const { data: allDocsResponse } = useDocuments();
@@ -116,6 +119,37 @@ export function AssistantToolsPanel({
     return allDocs.filter((doc) => selectedDocumentIds.includes(doc.id));
   }, [allDocs, selectedDocumentIds]);
 
+  function handleSummarize() {
+    if (selectedDocumentIds.length === 0) {
+      toast.error("Please select at least one document first");
+      return;
+    }
+    if (onSendMessage) {
+      onSendMessage("Please provide a comprehensive summary of the selected documents, including key points, main topics, and important details.");
+    }
+  }
+
+  function handleQuiz() {
+    if (selectedDocumentIds.length === 0) {
+      toast.error("Please select at least one document first");
+      return;
+    }
+    if (onSendMessage) {
+      onSendMessage("Generate 5 quiz questions with answers based on the content of the selected documents. Format as: Q1: [question] A1: [answer]");
+    }
+  }
+
+  function handleSearch() {
+    if (selectedDocumentIds.length === 0) {
+      onSelectedDocumentIdsChange(allDocs.map((doc) => doc.id));
+    }
+    const input = document.getElementById('chat-input') as HTMLTextAreaElement;
+    if (input) {
+      input.placeholder = "Search your documents: type your question...";
+      input.focus();
+    }
+  }
+
   return (
     <aside className={cn("h-full w-[320px] shrink-0 flex-col border-l border-border/40 bg-[var(--bg-secondary)]", className)}>
       <Tabs defaultValue="tools" className="flex h-full flex-col">
@@ -169,19 +203,19 @@ export function AssistantToolsPanel({
               )}
               
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <Button className="h-16 flex-col gap-1 rounded-xl bg-[var(--border-color)] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" disabled={isWorking} onClick={() => void onGenerateSummary()}>
+                <Button className="h-16 flex-col gap-1 rounded-xl bg-[var(--border-color)] hover:bg-[#333333] border-0 text-[var(--text-primary)] shadow-none" variant="outline" disabled={isWorking} onClick={handleSummarize}>
                   <BookOpenText className="h-5 w-5 text-indigo-400" />
                   <span className="text-xs">Summarize</span>
                 </Button>
-                <Button className="h-16 flex-col gap-1 rounded-xl bg-[var(--border-color)] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" disabled={isWorking} onClick={() => void onGenerateQuiz()}>
+                <Button className="h-16 flex-col gap-1 rounded-xl bg-[var(--border-color)] hover:bg-[#333333] border-0 text-[var(--text-primary)] shadow-none" variant="outline" disabled={isWorking} onClick={handleQuiz}>
                   <Cpu className="h-5 w-5 text-indigo-400" />
                   <span className="text-xs">Quiz</span>
                 </Button>
-                <Button className="h-16 flex-col gap-1 rounded-xl bg-[var(--border-color)] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" disabled={isWorking} onClick={() => void onRunSemanticSearch()}>
+                <Button className="h-16 flex-col gap-1 rounded-xl bg-[var(--border-color)] hover:bg-[#333333] border-0 text-[var(--text-primary)] shadow-none" variant="outline" disabled={isWorking} onClick={handleSearch}>
                   <SearchCode className="h-5 w-5 text-indigo-400" />
                   <span className="text-xs">Search</span>
                 </Button>
-                <Button className="h-16 flex-col gap-1 rounded-xl bg-[var(--border-color)] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" onClick={() => void onExportConversation()}>
+                <Button className="h-16 flex-col gap-1 rounded-xl bg-[var(--border-color)] hover:bg-[#333333] border-0 text-[var(--text-primary)] shadow-none" variant="outline" onClick={() => void onExportConversation()}>
                   <Download className="h-5 w-5 text-indigo-400" />
                   <span className="text-xs">Export</span>
                 </Button>

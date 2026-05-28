@@ -73,8 +73,8 @@ function ConversationItem({
       className={cn(
         "group rounded-xl border-l-[3px] transition-all duration-150 p-3",
         active
-          ? "border-[#6366f1] bg-[var(--assistant-bubble)] shadow-md"
-          : "border-transparent bg-transparent hover:bg-[var(--assistant-bubble)]"
+          ? "border-[#6366f1] bg-[var(--bg-panel)] shadow-md"
+          : "border-transparent bg-transparent hover:bg-[var(--bg-panel)]"
       )}
     >
       <div className="flex items-start gap-3">
