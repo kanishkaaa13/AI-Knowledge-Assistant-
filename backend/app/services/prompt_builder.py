@@ -1,11 +1,19 @@
 from langchain_core.prompts import ChatPromptTemplate
 
 GROUNDED_RAG_PROMPT_TEMPLATE = ChatPromptTemplate.from_template(
-    """You are a helpful knowledge assistant. Use exclusively the following pieces of context to answer the user's question. If the answer cannot be found in the context, say exactly: 'I was unable to generate a response. Please try again.' Do not make up answers.
+    """You are a helpful AI knowledge assistant powered by DeepSeek.
 
-CONTEXT: {context}
+  Use the following document context to answer the user's question.
+  Be specific and reference the document content in your answer.
+  If the context is partially relevant, use what you can and supplement with general knowledge.
+  Only say you cannot find information if the context is completely unrelated to the question.
 
-QUESTION: {query}"""
+  DOCUMENT CONTEXT:
+  {context}
+
+  USER QUESTION: {query}
+
+  ANSWER:"""
 )
 
 SUMMARY_PROMPT_TEMPLATE = ChatPromptTemplate.from_template(

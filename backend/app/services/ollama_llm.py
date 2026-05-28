@@ -9,7 +9,8 @@ from fastapi import HTTPException, status
 
 from app.core.config import settings
 
-SUPPORTED_OLLAMA_MODELS = {"deepseek-r1:7b"}
+DEFAULT_MODEL = getattr(settings, 'OLLAMA_DEFAULT_MODEL', 'deepseek-r1:7b')
+SUPPORTED_OLLAMA_MODELS = [DEFAULT_MODEL, "deepseek-r1:1.5b", "deepseek-r1:14b", "llama3", "mistral"]
 
 
 class OllamaLLMService:
@@ -20,13 +21,12 @@ class OllamaLLMService:
         if settings.ENFORCE_LOCAL_ONLY_AI and parsed.hostname not in {"localhost", "127.0.0.1"}:
             raise RuntimeError("OLLAMA_BASE_URL must stay local for privacy-first inference.")
 
-    def _validate_model(self, model: str) -> str:
+    def _validate_model(self, model: str | None) -> str:
+        if not model:
+            return DEFAULT_MODEL
         normalized = model.strip().lower()
         if normalized not in SUPPORTED_OLLAMA_MODELS:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported Ollama model. Supported models: {', '.join(sorted(SUPPORTED_OLLAMA_MODELS))}.",
-            )
+            return DEFAULT_MODEL
         return normalized
 
     async def generate(self, *, prompt: str, model: str) -> str:
@@ -67,14 +67,14 @@ class OllamaLLMService:
         data = response.json()
         return data.get("message", {}).get("content", "").strip()
 
-    async def stream_generate(self, *, system_prompt: str, user_message: str, model: str | None = None) -> AsyncIterator[str]:
+    async def stream_generate(self, *, prompt: str, model: str | None = None) -> AsyncIterator[str]:
         selected_model = self._validate_model(model or "deepseek-r1:7b")
         url = f"{self.base_url}/api/chat"
         payload = {
             "model": selected_model,
             "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
+                {"role": "system", "content": "You are a helpful AI assistant."},
+                {"role": "user", "content": prompt}
             ],
             "stream": True,
             "options": {

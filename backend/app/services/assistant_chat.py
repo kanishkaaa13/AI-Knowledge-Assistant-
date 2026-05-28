@@ -60,10 +60,13 @@ class AssistantChatService:
             chunks = _format_chunks(search_results)
 
             if not search_results:
-                pass
-
-            context = "\n\n".join([r.document for r in search_results])
-            prompt = build_rag_prompt(query=query, context=context)
+                # Fall back to direct LLM instead of returning error string
+                prompt = f"You are a helpful AI assistant.\n\nUser: {query}\nAssistant:"
+                context = ""
+                chunks = []
+            else:
+                context = "\n\n".join([r.document for r in search_results])
+                prompt = build_rag_prompt(query=query, context=context)
 
         try:
             answer = await self.ollama_service.generate(prompt=prompt, model=model)
@@ -96,80 +99,96 @@ class AssistantChatService:
         top_k: int = 4,
         document_ids: list[str] | None = None,
     ) -> AsyncIterator[str]:
-        import json
+        import asyncio
         
-        # Step 1: Always initialize context as empty string
-        context = ""
-        sources = []
-        
-        # Step 2: Only do RAG if document_ids provided
-        if document_ids:
+        print(f"[STREAM] query={query!r}")
+        print(f"[STREAM] document_ids={document_ids!r}")
+        print(f"[STREAM] model={model!r}")
+
+        # ── PATH A: No documents selected — direct DeepSeek chat ──────────────
+        if document_ids is not None and len(document_ids) == 0:
+            prompt = (
+                "You are a helpful AI assistant powered by DeepSeek.\n\n"
+                f"User: {query}\nAssistant:"
+            )
+            print(f"[STREAM] No docs selected — direct chat mode")
+            
+            yield f"data: {json.dumps({'type': 'context', 'context': '', 'chunks': [], 'model': model})}\n\n"
+            
+            full_answer = ""
             try:
-                retrieved = await self.vector_store.similarity_search(
-                    user_id=user_id,
-                    query=query,
-                    top_k=top_k,
-                    document_ids=document_ids,
-                )
-                if retrieved:
-                    chunks = retrieved
-                    context = "\n\n".join([r.document for r in chunks])
-                    sources = _format_chunks(chunks)
-                    print(f"[RAG] Found {len(chunks)} chunks, context length: {len(context)}")
-                else:
-                    print(f"[RAG] No chunks found for document_ids: {document_ids}")
-            except Exception as e:
-                print(f"[RAG ERROR] {e}")
-                context = ""  # fallback to no context
-        
-        # Step 3: Build prompt based on whether we have context
-        if context:
-            system_prompt = """You are a helpful AI assistant with access to the user's documents.
-Answer the user's question based on the provided document context.
-Be specific, accurate, and cite relevant information from the documents.
-If the context doesn't fully answer the question, say so and provide what you can."""
-            
-            user_prompt = f"""Document context:
-{context}
-
-User question: {query}
-
-Please answer based on the document context above."""
-        else:
-            system_prompt = """You are a helpful AI assistant.
-Answer the user's question helpfully and accurately.
-If asked about documents but none are provided, let the user know they should select documents."""
-            
-            user_prompt = query
-        
-        print(f"[CHAT] Sending to DeepSeek. Has context: {bool(context)}")
-        print(f"[CHAT] User prompt preview: {user_prompt[:200]}")
-        
-        # Step 4: Stream from Ollama/DeepSeek
-        # Yield context info first
-        meta_payload = {
-            "type": "context",
-            "context": context,
-            "chunks": sources,
-            "model": model,
-        }
-        yield f"data: {json.dumps(meta_payload)}\n\n"
-        
-        # Step 5: Stream tokens from DeepSeek
-        try:
-            async for token in self.ollama_service.stream_generate(
-                system_prompt=system_prompt,
-                user_message=user_prompt,
-                model=model,
-            ):
-                if token:
+                async for token in self.ollama_service.stream_generate(prompt=prompt, model=model):
+                    print(f"[STREAM] Token: {token!r}")
+                    full_answer += token
                     yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+            except Exception as e:
+                print(f"[STREAM ERROR] Direct chat failed: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                return
+            
+            final = full_answer.strip() or "I was unable to generate a response. Please try again."
+            yield f"data: {json.dumps({'type': 'done', 'answer': final, 'prompt': prompt})}\n\n"
+            return
+
+        # ── PATH B: Documents selected (or None = search all) — RAG mode ──────
+        search_results = []
+        context = ""
+        chunks = []
+        
+        try:
+            print(f"[STREAM] Running RAG retrieval...")
+            search_results = await self.vector_store.similarity_search(
+                user_id=user_id,
+                query=query,
+                top_k=top_k,
+                document_ids=document_ids,
+            )
+            print(f"[STREAM] RAG results: {len(search_results)} chunks")
         except Exception as e:
-            print(f"[LLM ERROR] {e}")
+            print(f"[STREAM] ChromaDB retrieval failed: {e}")
+            search_results = []
+
+        if search_results:
+            context = "\n\n".join([r.document for r in search_results])
+            chunks = _format_chunks(search_results)
+            print(f"[STREAM] Context length: {len(context)} chars")
+        else:
+            print(f"[STREAM] No chunks found — falling back to direct chat")
+
+        # Send context metadata to frontend
+        yield f"data: {json.dumps({'type': 'context', 'context': context, 'chunks': chunks, 'model': model})}\n\n"
+
+        # Build prompt
+        if context:
+            prompt = build_rag_prompt(query=query, context=context)
+        else:
+            # No context found — answer directly instead of returning error string
+            prompt = (
+                "You are a helpful AI assistant powered by DeepSeek.\n"
+                "The user selected documents but no relevant content was found.\n"
+                "Answer helpfully from general knowledge and mention the documents had no matches.\n\n"
+                f"User: {query}\nAssistant:"
+            )
+        
+        print(f"[STREAM] Prompt length: {len(prompt)} chars")
+        print(f"[STREAM] Prompt preview: {prompt[:300]!r}")
+        
+        full_answer = ""
+        try:
+            async for token in self.ollama_service.stream_generate(prompt=prompt, model=model):
+                print(f"[STREAM] Token: {token!r}")
+                full_answer += token
+                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+        except (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectError, asyncio.TimeoutError):
+            msg = "Connection to Ollama lost. Make sure Ollama is running: ollama serve"
+            print(f"[STREAM ERROR] {msg}")
+            yield f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n"
+            return
+        except Exception as e:
             import traceback
-            traceback.print_exc()
+            print(f"[STREAM ERROR] {traceback.format_exc()}")
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             return
-        
-        # Step 6: Done
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+        final = full_answer.strip() or "I was unable to generate a response. Please try again."
+        yield f"data: {json.dumps({'type': 'done', 'answer': final, 'prompt': prompt})}\n\n"

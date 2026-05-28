@@ -131,7 +131,7 @@ async def query_assistant(
     result = await AssistantChatService(get_vector_store_service()).answer(
         user=current_user,
         query=payload.query,
-        model=payload.model,
+        model=payload.model or "deepseek-r1:7b",
         top_k=payload.top_k or 4,
         document_ids=_sanitized_document_ids(payload.document_ids),
     )
@@ -180,7 +180,7 @@ async def stream_assistant_chat(
             assistant_stream = AssistantChatService(get_vector_store_service()).stream_answer(
                 user_id=user_id,
                 query=payload.query,
-                model=payload.model,
+                model=payload.model or "deepseek-r1:7b",
                 top_k=payload.top_k or 4,
                 document_ids=_sanitized_document_ids(payload.document_ids),
             )
