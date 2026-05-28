@@ -49,9 +49,13 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as RetryableAxiosRequestConfig | undefined;
     const isUnauthorized = error.response?.status === 401;
-    const isAuthRefreshRequest = originalRequest?.url?.includes("/auth/refresh");
+    const isAuthRequest =
+      originalRequest?.url?.includes("/auth/login") ||
+      originalRequest?.url?.includes("/auth/register") ||
+      originalRequest?.url?.includes("/auth/refresh") ||
+      originalRequest?.url?.includes("/auth/logout");
 
-    if (!isUnauthorized || !originalRequest || originalRequest._retry || isAuthRefreshRequest) {
+    if (!isUnauthorized || !originalRequest || originalRequest._retry || isAuthRequest) {
       return Promise.reject(error);
     }
 
