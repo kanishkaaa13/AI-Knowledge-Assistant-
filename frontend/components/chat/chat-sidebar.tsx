@@ -168,7 +168,7 @@ export function ChatSidebar({
   } | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
   const [isMounted, setIsMounted] = React.useState(false);
-  const { user, logout } = useAuth();
+  const { user, logoutUser } = useAuth();
 
   React.useEffect(() => {
     setIsMounted(true);
@@ -307,7 +307,7 @@ export function ChatSidebar({
                   <Settings className="h-4 w-4 text-muted-foreground" />
                 </Button>
               )}
-              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-[#1a1a1a] hover:text-destructive text-muted-foreground" onClick={logout}>
+              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-[#1a1a1a] hover:text-destructive text-muted-foreground" onClick={logoutUser}>
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>

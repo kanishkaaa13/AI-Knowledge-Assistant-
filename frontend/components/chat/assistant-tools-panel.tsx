@@ -234,7 +234,7 @@ export function AssistantToolsPanel({
             {allDocs.length > 0 ? (
               <div className="space-y-2 flex-1 overflow-y-auto">
                 {allDocs.map((doc) => {
-                  const ext = doc.filename.split('.').pop()?.toLowerCase();
+                  const ext = (doc.file_name || "").split('.').pop()?.toLowerCase();
                   return (
                     <div 
                       key={doc.id} 
