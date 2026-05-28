@@ -113,7 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setClientAuthCookie(true);
       toast.success(response.message);
       router.replace(redirectTo);
-      router.refresh();
+      // NOTE: Do NOT call router.refresh() here — it triggers SSR re-fetches
+      // that race with the cookie being set, causing spurious errors.
     },
     [router]
   );
@@ -126,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setClientAuthCookie(true);
       toast.success(response.message);
       router.replace(redirectTo);
-      router.refresh();
+      // NOTE: Do NOT call router.refresh() here — same race condition risk.
     },
     [router]
   );
@@ -140,7 +141,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStatus("unauthenticated");
       setClientAuthCookie(false);
       router.replace("/login");
-      router.refresh();
     }
   }, [router]);
 

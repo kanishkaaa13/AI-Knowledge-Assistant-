@@ -57,7 +57,6 @@ apiClient.interceptors.response.use(
       refreshPromise = null;
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("auth:expired"));
-        window.location.href = "/login";
       }
       return Promise.reject(refreshError);
     }
