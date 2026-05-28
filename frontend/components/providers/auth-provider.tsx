@@ -47,26 +47,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus("loading");
 
     try {
-      await refreshSession();
+      // First try to get the current user directly (works if access_token cookie is valid)
       const currentUser = await getCurrentUser();
       setUser(currentUser);
       setStatus("authenticated");
       setClientAuthCookie(true);
-    } catch (error) {
-      // Clear all auth-related data on failure
-      setUser(null);
-      setStatus("unauthenticated");
-      setClientAuthCookie(false);
-      
-      // Clear localStorage and cookies on auth failure
-      if (typeof window !== "undefined") {
-        localStorage.clear();
-        // Clear all cookies
-        document.cookie.split(";").forEach((c) => {
-          document.cookie = c
-            .replace(/^ +/, "")
-            .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-        });
+    } catch (firstError: any) {
+      // If 401, try refreshing the session
+      const is401 = firstError?.response?.status === 401;
+      if (is401) {
+        try {
+          await refreshSession();
+          const currentUser = await getCurrentUser();
+          setUser(currentUser);
+          setStatus("authenticated");
+          setClientAuthCookie(true);
+        } catch {
+          // Both failed — clear auth state
+          setUser(null);
+          setStatus("unauthenticated");
+          setClientAuthCookie(false);
+          if (typeof window !== "undefined") {
+            localStorage.clear();
+            document.cookie.split(";").forEach((c) => {
+              document.cookie = c
+                .replace(/^ +/, "")
+                .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            });
+          }
+        }
+      } else {
+        // Non-auth error — still mark as unauthenticated
+        setUser(null);
+        setStatus("unauthenticated");
+        setClientAuthCookie(false);
       }
     }
   }, [pathname]);
