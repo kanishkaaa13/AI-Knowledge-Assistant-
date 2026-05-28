@@ -76,6 +76,8 @@ class AssistantChatService:
             answer = await self.ollama_service.generate(prompt=prompt, model=model)
             if not answer.strip():
                 answer = "I cannot find that information in your uploaded documents."
+        except HTTPException as exc:
+            raise exc
         except Exception:
             logger.exception("Ollama generation failed.")
             answer = (
@@ -141,35 +143,24 @@ class AssistantChatService:
         prompt = query if is_general_knowledge else build_rag_prompt(query=query, context=context)
         full_answer = ""
 
-        # Check Ollama availability
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(self.ollama_service.base_url, timeout=3.0)
-                if response.status_code != 200:
-                    raise ValueError("Ollama returned non-200")
-        except Exception:
-            logger.warning("Ollama availability check failed — returning diagnostic message.")
-            msg = (
-                "DeepSeek model is not running. Please run: "
-                "ollama pull deepseek-r1:7b && ollama serve"
-            )
-            yield f"data: {json.dumps({'type': 'token', 'content': msg})}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'answer': msg, 'prompt': prompt})}\n\n"
-            return
-
         # Stream tokens
+        import asyncio
         try:
             async for token in self.ollama_service.stream_generate(prompt=prompt, model=model):
                 full_answer += token
-                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+                yield f"data: {{json.dumps({{'type': 'token', 'content': token}})}}\n\n"
+        except (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectError, asyncio.TimeoutError, GeneratorExit):
+            logger.exception("Ollama connection lost mid-stream.")
+            fallback = "Connection to Ollama lost. Please ensure Ollama is running with: ollama serve"
+            yield f"data: {{json.dumps({{'type': 'error', 'message': fallback, 'error': fallback}})}}\n\n"
+            return
+        except HTTPException as exc:
+            yield f"data: {{json.dumps({{'type': 'error', 'message': exc.detail}})}}\n\n"
+            return
         except Exception:
             logger.exception("Ollama streaming failed.")
-            fallback = (
-                "🤖 Lost connection to Ollama mid-stream. "
-                "Please try again or restart the Ollama service."
-            )
-            yield f"data: {json.dumps({'type': 'token', 'content': fallback})}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'answer': fallback, 'prompt': prompt})}\n\n"
+            fallback = "Lost connection to Ollama mid-stream. Please try again or restart the Ollama service."
+            yield f"data: {{json.dumps({{'type': 'error', 'message': fallback}})}}\n\n"
             return
 
         final_answer = full_answer.strip() or "I cannot find that information in your uploaded documents."

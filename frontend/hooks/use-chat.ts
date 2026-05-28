@@ -428,15 +428,12 @@ export function useChat() {
 
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
     } catch (error: any) {
-      const isValidationError = error?.response?.status === 422;
-      const isServerError = error?.response?.status >= 500;
-      const userMessage = isValidationError
-        ? "⚠️ Error: Your message couldn't be processed. Please try again."
-        : isServerError
-          ? "⚠️ Error: Server error occurred. Please try again."
-          : "⚠️ Error: Something went wrong. Please check your message and try again.";
-      updateAssistantMessage(() => userMessage, true);
-      toast.error(userMessage);
+      let errorMessage = error?.message || "Something went wrong.";
+      if (error?.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      updateAssistantMessage(() => `⚠️ Error: ${errorMessage}`, true);
+      toast.error("An error occurred. Check the chat for details.");
     }
   }, [
     activeConversationId,

@@ -41,7 +41,17 @@ class OllamaLLMService:
         async with httpx.AsyncClient(timeout=120.0) as client:
             try:
                 response = await client.post(f"{self.base_url}/api/generate", json=payload)
+                if response.status_code == 404:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Model deepseek-r1:7b not found. Run: ollama pull deepseek-r1:7b"
+                    )
                 response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Unable to reach the local Ollama service.",
+                ) from exc
             except httpx.HTTPError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -60,25 +70,24 @@ class OllamaLLMService:
             "keep_alive": self.keep_alive,
         }
 
-        async with httpx.AsyncClient(timeout=None) as client:
-            try:
-                async with client.stream(
-                    "POST",
-                    f"{self.base_url}/api/generate",
-                    json=payload,
-                ) as response:
-                    response.raise_for_status()
-                    async for line in response.aiter_lines():
-                        if not line:
-                            continue
-                        data = json.loads(line)
-                        token = data.get("response", "")
-                        if token:
-                            yield token
-                        if data.get("done"):
-                            break
-            except httpx.HTTPError as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Unable to stream from the local Ollama service.",
-                ) from exc
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/api/generate",
+                json=payload,
+            ) as response:
+                if response.status_code == 404:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Model deepseek-r1:7b not found. Run: ollama pull deepseek-r1:7b"
+                    )
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line:
+                        continue
+                    data = json.loads(line)
+                    token = data.get("response", "")
+                    if token:
+                        yield token
+                    if data.get("done"):
+                        break

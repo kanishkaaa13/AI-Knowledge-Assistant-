@@ -41,6 +41,20 @@ def _sanitized_document_ids(document_ids: list[str]) -> list[str]:
     return [item for item in document_ids if item]
 
 
+async def _ensure_ollama_running() -> None:
+    import httpx
+    from app.core.config import settings
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            res = await client.get(settings.OLLAMA_BASE_URL)
+            res.raise_for_status()
+    except Exception:
+        raise HTTPException(
+            status_code=503, 
+            detail="Ollama service is not running. Start it with: ollama serve"
+        )
+
+
 @router.get("/summary", response_model=DashboardSummary)
 async def get_summary(
     current_user: User = Depends(get_current_user),
@@ -98,6 +112,7 @@ async def query_assistant(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AssistantQueryResponse:
+    await _ensure_ollama_running()
     apply_rate_limit(request, scope="assistant-query", limit=30, user_id=str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
     memory = ChatMemoryService(db)
@@ -137,6 +152,7 @@ async def stream_assistant_chat(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
+    await _ensure_ollama_running()
     apply_rate_limit(request, scope="assistant-stream", limit=30, user_id=str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
 
