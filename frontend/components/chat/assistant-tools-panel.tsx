@@ -70,7 +70,7 @@ export function AssistantToolsPanel({
   }, [allDocs, selectedDocumentIds]);
 
   return (
-    <aside className={cn("h-screen w-[340px] shrink-0 flex-col border-l border-border/40 bg-[#0f0f0f]", className)}>
+    <aside className={cn("h-full w-[320px] shrink-0 flex-col border-l border-border/40 bg-[#0f0f0f]", className)}>
       <Tabs defaultValue="tools" className="flex h-full flex-col">
         <div className="flex-shrink-0 p-4 border-b border-border/40">
           <TabsList className="grid w-full grid-cols-3 bg-[#1a1a1a]">

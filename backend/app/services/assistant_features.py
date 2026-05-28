@@ -27,10 +27,11 @@ class AssistantFeatureService:
         document_ids: list[str] | None = None,
     ) -> dict:
         # Retrieve context from ChromaDB
-        search_results = self.vector_store.similarity_search(
+        search_results = await self.vector_store.similarity_search(
             user_id=user.id,
             query=query,
             top_k=top_k,
+            document_ids=document_ids,
         )
 
         if not search_results:
@@ -63,10 +64,11 @@ class AssistantFeatureService:
         document_ids: list[str] | None = None,
     ) -> dict:
         # Retrieve context from ChromaDB
-        search_results = self.vector_store.similarity_search(
+        search_results = await self.vector_store.similarity_search(
             user_id=user.id,
             query=query,
             top_k=max(count, 4),
+            document_ids=document_ids,
         )
 
         if not search_results:
@@ -113,10 +115,11 @@ class AssistantFeatureService:
         document_ids: list[str] | None = None,
     ) -> dict:
         # Retrieve context from ChromaDB
-        search_results = self.vector_store.similarity_search(
+        search_results = await self.vector_store.similarity_search(
             user_id=user.id,
             query=query,
             top_k=6,
+            document_ids=document_ids,
         )
 
         if not search_results:

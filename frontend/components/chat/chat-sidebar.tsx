@@ -205,7 +205,7 @@ export function ChatSidebar({
   return (
     <>
       {/* Sidebar — h-full fills the flex parent (h-screen on chat-shell root) */}
-      <aside className="flex h-full w-[300px] flex-col border-r border-border/40 bg-[#0f0f0f] xl:w-[320px]">
+      <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-border/40 bg-[#0f0f0f]">
         {/* Header — fixed height */}
         <div className="flex-shrink-0 space-y-4 p-5">
           <Button

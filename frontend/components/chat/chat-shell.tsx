@@ -102,8 +102,8 @@ export function ChatShell({
   const [isToolsOpen, setIsToolsOpen] = React.useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-b from-[#0a0a0a] to-[#111111]">
-      <div className="hidden xl:flex xl:flex-shrink-0">
+    <div className="flex h-screen overflow-hidden bg-[#0a0a0a]">
+      <div className="hidden xl:flex xl:flex-shrink-0 h-full">
         <ChatSidebar
           activeConversationId={activeConversationId}
           groupedConversations={groupedConversations}
@@ -166,24 +166,24 @@ export function ChatShell({
               />
             </div>
           </div>
-
-          <AssistantToolsPanel
-            generatedSummary={generatedSummary}
-            isWorking={isWorkingTools}
-            quiz={quiz}
-            searchResults={searchResults}
-            selectedDocumentIds={selectedDocumentIds}
-            suggestedPrompts={suggestedPrompts}
-            onExportConversation={() => activeConversationId ? onExportConversation(activeConversationId) : Promise.resolve()}
-            onGenerateQuiz={onGenerateQuiz}
-            onGenerateSummary={onGenerateSummary}
-            onRunSemanticSearch={onRunSemanticSearch}
-            onUsePrompt={onUseSuggestedPrompt}
-            onSelectedDocumentIdsChange={onSelectedDocumentIdsChange}
-            className="hidden xl:flex"
-          />
         </main>
       </div>
+
+      <AssistantToolsPanel
+        generatedSummary={generatedSummary}
+        isWorking={isWorkingTools}
+        quiz={quiz}
+        searchResults={searchResults}
+        selectedDocumentIds={selectedDocumentIds}
+        suggestedPrompts={suggestedPrompts}
+        onExportConversation={() => activeConversationId ? onExportConversation(activeConversationId) : Promise.resolve()}
+        onGenerateQuiz={onGenerateQuiz}
+        onGenerateSummary={onGenerateSummary}
+        onRunSemanticSearch={onRunSemanticSearch}
+        onUsePrompt={onUseSuggestedPrompt}
+        onSelectedDocumentIdsChange={onSelectedDocumentIdsChange}
+        className="hidden xl:flex h-full"
+      />
 
       <DocumentManager
         selectedDocumentIds={selectedDocumentIds}

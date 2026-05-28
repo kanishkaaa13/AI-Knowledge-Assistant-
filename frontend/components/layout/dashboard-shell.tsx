@@ -1,5 +1,5 @@
 import * as React from "react";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
-  return <div className="h-screen overflow-hidden bg-background">{children}</div>;
+  return <div className="flex h-screen overflow-hidden bg-[#0a0a0a]">{children}</div>;
 }
