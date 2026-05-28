@@ -48,7 +48,7 @@ export function ChatMessageBubble({
   return (
     <article className={cn("flex w-full gap-3", isUser ? "justify-end" : "justify-start")}>
       {!isUser && (
-        <div className="mt-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1a1a1a] border border-[#2a2a2a] text-sm">
+        <div className="mt-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--assistant-bubble)] border border-[var(--border-color)] text-sm">
           🤖
         </div>
       )}
@@ -59,14 +59,14 @@ export function ChatMessageBubble({
             "group relative px-5 py-3 shadow-sm",
             isUser
               ? "bg-[#6366f1] text-white rounded-[18px_18px_4px_18px]"
-              : "bg-[#1a1a1a] border border-[#2a2a2a] rounded-[18px_18px_18px_4px]"
+              : "bg-[var(--assistant-bubble)] border border-[var(--border-color)] rounded-[18px_18px_18px_4px]"
           )}
         >
           <ChatMarkdown content={message.content} invert={isUser} isStreaming={message.isStreaming} />
         </div>
         <div className={cn("mt-1.5 flex items-center gap-2 px-1", isUser ? "flex-row-reverse" : "flex-row")}>
-          <span className="text-[11px] font-medium text-[#4b5563]">{message.createdAt}</span>
-          <button onClick={() => void copyMessage()} className="text-[10px] text-[#4b5563] hover:text-[#6b7280]">
+          <span className="text-[11px] font-medium text-[var(--text-secondary)]">{message.createdAt}</span>
+          <button onClick={() => void copyMessage()} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-secondary)]">
              {message.isStreaming ? "Streaming" : "Copy"}
           </button>
         </div>

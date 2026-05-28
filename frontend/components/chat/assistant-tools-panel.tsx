@@ -117,19 +117,19 @@ export function AssistantToolsPanel({
   }, [allDocs, selectedDocumentIds]);
 
   return (
-    <aside className={cn("h-full w-[320px] shrink-0 flex-col border-l border-border/40 bg-[#0f0f0f]", className)}>
+    <aside className={cn("h-full w-[320px] shrink-0 flex-col border-l border-border/40 bg-[var(--bg-secondary)]", className)}>
       <Tabs defaultValue="tools" className="flex h-full flex-col">
         <div className="flex-shrink-0 p-4 border-b border-border/40">
-          <TabsList className="grid w-full grid-cols-3 bg-[#1a1a1a]">
-            <TabsTrigger value="tools" className="rounded-lg data-[state=active]:bg-[#2a2a2a] data-[state=active]:text-white text-muted-foreground">Tools</TabsTrigger>
-            <TabsTrigger value="documents" className="rounded-lg data-[state=active]:bg-[#2a2a2a] data-[state=active]:text-white text-muted-foreground">Docs</TabsTrigger>
-            <TabsTrigger value="memory" className="rounded-lg data-[state=active]:bg-[#2a2a2a] data-[state=active]:text-white text-muted-foreground">Memory</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 bg-[var(--assistant-bubble)]">
+            <TabsTrigger value="tools" className="rounded-lg data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white text-muted-foreground">Tools</TabsTrigger>
+            <TabsTrigger value="documents" className="rounded-lg data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white text-muted-foreground">Docs</TabsTrigger>
+            <TabsTrigger value="memory" className="rounded-lg data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white text-muted-foreground">Memory</TabsTrigger>
           </TabsList>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
           <TabsContent value="tools" className="m-0 space-y-4">
-            <div className="rounded-xl border border-border/40 bg-[#1a1a1a] p-4">
+            <div className="rounded-xl border border-border/40 bg-[var(--assistant-bubble)] p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <Sparkles className="h-4 w-4 text-indigo-500" />
                 Assistant Actions
@@ -148,7 +148,7 @@ export function AssistantToolsPanel({
               </div>
               
               {allDocs.length > 0 ? (
-                <div className="mt-2 max-h-40 overflow-y-auto space-y-1 rounded-lg bg-[#2a2a2a] p-2">
+                <div className="mt-2 max-h-40 overflow-y-auto space-y-1 rounded-lg bg-[var(--border-color)] p-2">
                   {allDocs.map((doc) => (
                     <div 
                       key={doc.id} 
@@ -169,19 +169,19 @@ export function AssistantToolsPanel({
               )}
               
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <Button className="h-16 flex-col gap-1 rounded-xl bg-[#2a2a2a] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" disabled={isWorking} onClick={() => void onGenerateSummary()}>
+                <Button className="h-16 flex-col gap-1 rounded-xl bg-[var(--border-color)] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" disabled={isWorking} onClick={() => void onGenerateSummary()}>
                   <BookOpenText className="h-5 w-5 text-indigo-400" />
                   <span className="text-xs">Summarize</span>
                 </Button>
-                <Button className="h-16 flex-col gap-1 rounded-xl bg-[#2a2a2a] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" disabled={isWorking} onClick={() => void onGenerateQuiz()}>
+                <Button className="h-16 flex-col gap-1 rounded-xl bg-[var(--border-color)] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" disabled={isWorking} onClick={() => void onGenerateQuiz()}>
                   <Cpu className="h-5 w-5 text-indigo-400" />
                   <span className="text-xs">Quiz</span>
                 </Button>
-                <Button className="h-16 flex-col gap-1 rounded-xl bg-[#2a2a2a] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" disabled={isWorking} onClick={() => void onRunSemanticSearch()}>
+                <Button className="h-16 flex-col gap-1 rounded-xl bg-[var(--border-color)] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" disabled={isWorking} onClick={() => void onRunSemanticSearch()}>
                   <SearchCode className="h-5 w-5 text-indigo-400" />
                   <span className="text-xs">Search</span>
                 </Button>
-                <Button className="h-16 flex-col gap-1 rounded-xl bg-[#2a2a2a] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" onClick={() => void onExportConversation()}>
+                <Button className="h-16 flex-col gap-1 rounded-xl bg-[var(--border-color)] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" onClick={() => void onExportConversation()}>
                   <Download className="h-5 w-5 text-indigo-400" />
                   <span className="text-xs">Export</span>
                 </Button>
@@ -194,7 +194,7 @@ export function AssistantToolsPanel({
             <div
               className={cn(
                 "relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors",
-                isDragging ? "border-indigo-500 bg-indigo-500/10" : "border-border/40 hover:bg-[#1a1a1a]"
+                isDragging ? "border-indigo-500 bg-indigo-500/10" : "border-border/40 hover:bg-[var(--assistant-bubble)]"
               )}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -238,7 +238,7 @@ export function AssistantToolsPanel({
                   return (
                     <div 
                       key={doc.id} 
-                      className="flex items-center gap-3 rounded-xl border border-border/40 bg-[#1a1a1a] p-3 transition-colors hover:bg-[#2a2a2a] cursor-pointer"
+                      className="flex items-center gap-3 rounded-xl border border-border/40 bg-[var(--assistant-bubble)] p-3 transition-colors hover:bg-[var(--border-color)] cursor-pointer"
                       onClick={() => toggleDocument(doc.id)}
                     >
                       <div className="shrink-0">
@@ -285,7 +285,7 @@ export function AssistantToolsPanel({
           </TabsContent>
 
           <TabsContent value="memory" className="m-0 space-y-4">
-            <section className="rounded-xl border border-border/40 bg-[#1a1a1a] p-4">
+            <section className="rounded-xl border border-border/40 bg-[var(--assistant-bubble)] p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <Lightbulb className="h-4 w-4 text-indigo-500" />
                 Suggested Prompts
@@ -295,7 +295,7 @@ export function AssistantToolsPanel({
                   suggestedPrompts.map((prompt) => (
                     <button
                       key={prompt}
-                      className="rounded-lg bg-[#2a2a2a] px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-[#333333] hover:text-white"
+                      className="rounded-lg bg-[var(--border-color)] px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-[#333333] hover:text-white"
                       onClick={() => onUsePrompt(prompt)}
                       type="button"
                     >
@@ -308,7 +308,7 @@ export function AssistantToolsPanel({
               </div>
             </section>
 
-            <section className="rounded-xl border border-border/40 bg-[#1a1a1a] p-4">
+            <section className="rounded-xl border border-border/40 bg-[var(--assistant-bubble)] p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <BookOpenText className="h-4 w-4 text-indigo-500" />
                 AI Summary
@@ -318,7 +318,7 @@ export function AssistantToolsPanel({
               </p>
             </section>
 
-            <section className="rounded-xl border border-border/40 bg-[#1a1a1a] p-4">
+            <section className="rounded-xl border border-border/40 bg-[var(--assistant-bubble)] p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <SearchCode className="h-4 w-4 text-indigo-500" />
                 Semantic Results
@@ -326,7 +326,7 @@ export function AssistantToolsPanel({
               <div className="mt-3 space-y-3">
                 {searchResults.length > 0 ? (
                   searchResults.map((item) => (
-                    <div key={item.document_id} className="rounded-lg bg-[#2a2a2a] p-3">
+                    <div key={item.document_id} className="rounded-lg bg-[var(--border-color)] p-3">
                       <p className="text-xs font-medium text-white">{item.title}</p>
                       <p className="mt-1 text-[10px] text-muted-foreground">{item.filename}</p>
                       <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{item.excerpt}</p>
@@ -338,7 +338,7 @@ export function AssistantToolsPanel({
               </div>
             </section>
 
-            <section className="rounded-xl border border-border/40 bg-[#1a1a1a] p-4">
+            <section className="rounded-xl border border-border/40 bg-[var(--assistant-bubble)] p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <BookOpenText className="h-4 w-4 text-indigo-500" />
                 Quiz
@@ -346,7 +346,7 @@ export function AssistantToolsPanel({
               <div className="mt-3 space-y-3">
                 {quiz.length > 0 ? (
                   quiz.map((item, index) => (
-                    <div key={`${item.question}-${index}`} className="rounded-lg bg-[#2a2a2a] p-3">
+                    <div key={`${item.question}-${index}`} className="rounded-lg bg-[var(--border-color)] p-3">
                       <p className="text-xs font-medium text-white">{item.question}</p>
                       <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-indigo-400">
                         {item.difficulty}

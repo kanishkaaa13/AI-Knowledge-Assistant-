@@ -1,22 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { useTheme } from "next-themes";
+import { X } from "lucide-react";
 
 import type { AssistantSettings } from "@/types/chat";
 
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-
-const models: AssistantSettings["model"][] = ["llama3", "mistral"];
-const themes: AssistantSettings["theme"][] = ["light", "dark", "system"];
+const models: AssistantSettings["model"][] = ["deepseek-r1:7b", "llama3", "mistral"];
 
 export function SettingsModal({
   onOpenChange,
@@ -36,105 +27,107 @@ export function SettingsModal({
     setDraft(settings);
   }, [settings]);
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Workspace settings</DialogTitle>
-          <DialogDescription>
-            Tune the behavior and appearance of your personal AI assistant.
-          </DialogDescription>
-        </DialogHeader>
+  React.useEffect(() => {
+    if (!open) return;
 
-        <div className="mt-6 space-y-6">
-          <section className="space-y-3">
-            <Label>Theme preference</Label>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {themes.map((theme) => (
-                <button
-                  key={theme}
-                  className={`rounded-2xl border px-4 py-3 text-left text-sm capitalize transition ${
-                    draft.theme === theme
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border/60 hover:bg-secondary"
-                  }`}
-                  onClick={() => setDraft((current) => ({ ...current, theme }))}
-                  type="button"
-                >
-                  {theme}
-                </button>
-              ))}
-            </div>
-          </section>
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onOpenChange(false);
+    };
 
-          <section className="space-y-3">
-            <Label>Preferred model</Label>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {models.map((model) => (
-                <button
-                  key={model}
-                  className={`rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                    draft.model === model
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border/60 hover:bg-secondary"
-                  }`}
-                  onClick={() => setDraft((current) => ({ ...current, model }))}
-                  type="button"
-                >
-                  {model}
-                </button>
-              ))}
-            </div>
-          </section>
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
 
-          <section className="space-y-3">
-            <Label>Response mode</Label>
-            <div className="grid gap-3">
-              <button
-                className={`rounded-2xl border px-4 py-3 text-left text-sm ${
-                  draft.streamResponses ? "border-primary bg-primary/10" : "border-border/60"
-                }`}
-                onClick={() =>
-                  setDraft((current) => ({ ...current, streamResponses: !current.streamResponses }))
-                }
-                type="button"
-              >
-                <p className="font-medium">Streaming responses</p>
-                <p className="mt-1 text-muted-foreground">
-                  Reveal assistant output progressively for a live chat feel.
-                </p>
-              </button>
-              <button
-                className={`rounded-2xl border px-4 py-3 text-left text-sm ${
-                  draft.webSearch ? "border-primary bg-primary/10" : "border-border/60"
-                }`}
-                onClick={() => setDraft((current) => ({ ...current, webSearch: !current.webSearch }))}
-                type="button"
-              >
-                <p className="font-medium">Web-assisted answers</p>
-                <p className="mt-1 text-muted-foreground">
-                  Reserve space for retrieval or web grounding in future backend phases.
-                </p>
-              </button>
-            </div>
-          </section>
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [open, onOpenChange]);
+
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
+  if (!open || !mounted) return null;
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+      onClick={() => onOpenChange(false)}
+    >
+      <div
+        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-[16px] border border-[var(--border-color)] bg-[var(--assistant-bubble)] p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-white">Workspace Settings</h2>
+          <button
+            onClick={() => onOpenChange(false)}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        <div className="mt-8 flex justify-end gap-3">
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-200">Preferred Model</label>
+            <select
+              value={draft.model}
+              onChange={(e) => setDraft((curr) => ({ ...curr, model: e.target.value as any }))}
+              className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              {models.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-200">Response Mode</label>
+            <div className="flex rounded-lg border border-[var(--border-color)] bg-[var(--bg-panel)] p-1">
+              <button
+                type="button"
+                onClick={() => setDraft((curr) => ({ ...curr, streamResponses: true }))}
+                className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  draft.streamResponses ? "bg-[#2d2d2d] text-white shadow" : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                Streaming
+              </button>
+              <button
+                type="button"
+                onClick={() => setDraft((curr) => ({ ...curr, streamResponses: false }))}
+                className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  !draft.streamResponses ? "bg-[#2d2d2d] text-white shadow" : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                Complete
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 flex flex-col gap-3">
+          <button
             onClick={() => {
               setTheme(draft.theme);
               onSave(draft);
               onOpenChange(false);
             }}
+            className="w-full rounded-lg bg-indigo-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
           >
-            Save changes
-          </Button>
+            Save Changes
+          </button>
+          <button
+            onClick={() => onOpenChange(false)}
+            className="w-full rounded-lg border border-[var(--border-color)] bg-transparent px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-white/5"
+          >
+            Cancel
+          </button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>,
+    document.body
   );
 }

@@ -220,6 +220,9 @@ export function useChat() {
       setInput("");
       setIsSidebarOpen(false);
     });
+    setTimeout(() => {
+      document.getElementById("chat-input")?.focus();
+    }, 0);
   }, []);
 
   const selectConversation = React.useCallback((conversationId: string) => {
@@ -324,19 +327,21 @@ export function useChat() {
     setInput("");
 
     let conversationId = activeConversationId;
-    if (!conversationId) {
-      const createdConversation = mapConversationDetail(await createConversation());
-      conversationId = createdConversation.id;
-      queryClient.setQueryData(["conversation", conversationId], createdConversation);
+    const isNewConversation = !conversationId;
+    if (isNewConversation) {
+      conversationId = "temp-" + Date.now();
       React.startTransition(() => {
         setIsDraftConversation(false);
         setActiveConversationId(conversationId);
       });
+      setTimeout(() => {
+        document.getElementById("chat-input")?.focus();
+      }, 0);
     }
 
-    updateConversationCache(conversationId, (current) => ({
+    updateConversationCache(conversationId!, (current) => ({
       ...(current ?? {
-        id: conversationId,
+        id: conversationId!,
         userId: "",
         title: "New conversation",
         summary: prompt,
@@ -354,7 +359,7 @@ export function useChat() {
       messages: [...(current?.messages ?? []), optimisticUserMessage]
     }));
 
-    updateConversationCache(conversationId, (current) => ({
+    updateConversationCache(conversationId!, (current) => ({
       ...(current as ConversationDetail),
       messages: [
         ...((current as ConversationDetail).messages ?? []),
@@ -368,8 +373,8 @@ export function useChat() {
       ]
     }));
 
-    const updateAssistantMessage = (updater: (current: string) => string, done = false) => {
-      updateConversationCache(conversationId!, (current) => ({
+    const updateAssistantMessage = (updater: (current: string) => string, done = false, targetId = conversationId!) => {
+      updateConversationCache(targetId, (current) => ({
         ...(current as ConversationDetail),
         messages: (current?.messages ?? []).map((message) =>
           message.id !== optimisticAssistantId
@@ -383,8 +388,40 @@ export function useChat() {
       }));
     };
 
+    const handleNewConversationFinalized = (finalId: string, title?: string, summary?: string) => {
+      setActiveConversationId(finalId);
+      queryClient.setQueryData<ConversationPreview[]>(["conversations"], (old) => {
+        return [
+          {
+            id: finalId,
+            title: title || prompt.substring(0, 40),
+            summary: summary || prompt,
+            updatedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            isFavorite: false,
+            messageCount: 2,
+            lastMessagePreview: summary || prompt
+          },
+          ...(old ?? [])
+        ];
+      });
+
+      const tempCache = queryClient.getQueryData<ConversationDetail>(["conversation", conversationId!]);
+      if (tempCache) {
+        queryClient.setQueryData(["conversation", finalId], {
+          ...tempCache,
+          id: finalId,
+          title: title || prompt.substring(0, 40),
+          summary: summary || prompt,
+          lastMessagePreview: summary || prompt,
+          updatedAt: new Date().toISOString(),
+          messageCount: 2
+        });
+        queryClient.removeQueries({ queryKey: ["conversation", conversationId!] });
+      }
+    };
+
     try {
-      // When no documents are selected, send [] to let backend answer from general knowledge
       const effectiveDocumentIds = selectedDocumentIds;
       if (settings.streamResponses) {
         await streamAssistantChat(
@@ -392,7 +429,7 @@ export function useChat() {
             query: prompt,
             model: settings.model as StreamPayload["model"],
             hybrid: true,
-            conversation_id: conversationId,
+            conversation_id: isNewConversation ? undefined : conversationId,
             document_ids: effectiveDocumentIds
           } satisfies StreamPayload,
           {
@@ -400,18 +437,24 @@ export function useChat() {
               updateAssistantMessage((current) => current + token);
             },
             onDone(data) {
-              updateAssistantMessage(() => data.answer, true);
-              updateConversationCache(conversationId!, (current) => ({
-                ...(current as ConversationDetail),
-                title: data.conversation_title ?? current?.title ?? "New conversation",
-                summary: data.answer,
-                lastMessagePreview: data.answer,
-                updatedAt: new Date().toISOString(),
-                messageCount: current?.messageCount ?? 0
-              }));
+              const finalId = data.conversation_id || conversationId;
+              if (isNewConversation && finalId) {
+                handleNewConversationFinalized(finalId, data.conversation_title, data.answer);
+                updateAssistantMessage(() => data.answer, true, finalId);
+              } else {
+                updateConversationCache(conversationId!, (current) => ({
+                  ...(current as ConversationDetail),
+                  title: data.conversation_title ?? current?.title ?? "New conversation",
+                  summary: data.answer,
+                  lastMessagePreview: data.answer,
+                  updatedAt: new Date().toISOString(),
+                  messageCount: current?.messageCount ?? 0
+                }));
+                updateAssistantMessage(() => data.answer, true, conversationId!);
+              }
             },
             onError(message) {
-              updateAssistantMessage(() => `⚠️ ${message}`, true);
+              updateAssistantMessage(() => `⚠️ Error: ${message}`, true);
             }
           }
         );
@@ -420,10 +463,17 @@ export function useChat() {
           query: prompt,
           model: settings.model,
           hybrid: true,
-          conversation_id: conversationId,
+          conversation_id: isNewConversation ? undefined : conversationId,
           document_ids: effectiveDocumentIds
         });
-        updateAssistantMessage(() => response.answer, true);
+        
+        const finalId = response.conversation_id || conversationId;
+        if (isNewConversation && finalId) {
+          handleNewConversationFinalized(finalId, response.conversation_title, response.answer);
+          updateAssistantMessage(() => response.answer, true, finalId);
+        } else {
+          updateAssistantMessage(() => response.answer, true);
+        }
       }
 
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });

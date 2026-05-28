@@ -75,16 +75,17 @@ export function ChatInput({
     <form className="mx-auto flex w-full max-w-4xl items-end gap-2" onSubmit={handleSubmit}>
       <Button
         type="button"
-        className="mb-[2px] h-10 w-10 shrink-0 rounded-[10px] border border-[#2d2d2d] bg-[#1a1a1a] text-[#6b7280] hover:bg-[#2a2a2a] hover:text-white"
+        className="mb-[2px] h-10 w-10 shrink-0 rounded-[10px] border border-[var(--border-color)] bg-[var(--assistant-bubble)] text-[var(--text-secondary)] hover:bg-[var(--border-color)] hover:text-white"
         variant="ghost"
         title="Attach Document"
       >
         <Paperclip className="h-4 w-4" />
       </Button>
 
-      <div className="flex-1 rounded-[12px] border border-[#2d2d2d] bg-[#1a1a1a] overflow-hidden">
+      <div className="flex-1 rounded-[12px] border border-[var(--border-color)] bg-[var(--assistant-bubble)] overflow-hidden">
         <Textarea
-          className="max-h-[200px] min-h-[44px] w-full resize-none border-0 bg-transparent px-4 py-3 text-sm text-[#f1f1f1] shadow-none focus-visible:ring-0 placeholder:text-[#6b7280]"
+          id="chat-input"
+          className="max-h-[200px] min-h-[44px] w-full resize-none border-0 bg-transparent px-4 py-3 text-sm text-[var(--text-primary)] shadow-none focus-visible:ring-0 placeholder:text-[var(--text-secondary)]"
           onChange={(event) => onInputChange(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {

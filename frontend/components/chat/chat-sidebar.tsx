@@ -13,8 +13,12 @@ import {
   Search,
   Settings,
   Sparkles,
-  Trash2
+  Trash2,
+  Sun,
+  Moon
 } from "lucide-react";
+
+import { useTheme } from "next-themes";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -67,10 +71,10 @@ function ConversationItem({
   return (
     <div
       className={cn(
-        "group rounded-xl border-l-4 transition-all duration-150 p-3",
+        "group rounded-xl border-l-[3px] transition-all duration-150 p-3",
         active
-          ? "border-indigo-500 bg-[#1a1a1a] shadow-md"
-          : "border-transparent bg-transparent hover:bg-[#1a1a1a]"
+          ? "border-[#6366f1] bg-[var(--assistant-bubble)] shadow-md"
+          : "border-transparent bg-transparent hover:bg-[var(--assistant-bubble)]"
       )}
     >
       <div className="flex items-start gap-3">
@@ -80,7 +84,9 @@ function ConversationItem({
           type="button"
         >
           <div className="flex items-start justify-between gap-3">
-            <p className="line-clamp-1 text-sm font-medium">{conversation.title}</p>
+            <p className="line-clamp-1 text-sm font-medium">
+              {conversation.title.length > 35 ? conversation.title.substring(0, 35) + "..." : conversation.title}
+            </p>
             <span className="shrink-0 text-[11px] text-muted-foreground">
               {formatRelativeTime(conversation.updatedAt)}
             </span>
@@ -169,6 +175,7 @@ export function ChatSidebar({
   const [renameValue, setRenameValue] = React.useState("");
   const [isMounted, setIsMounted] = React.useState(false);
   const { user, logoutUser } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   React.useEffect(() => {
     setIsMounted(true);
@@ -208,7 +215,7 @@ export function ChatSidebar({
   return (
     <>
       {/* Sidebar — h-full fills the flex parent (h-screen on chat-shell root) */}
-      <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-border/40 bg-[#0f0f0f]">
+      <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-border/40 bg-[var(--bg-secondary)]">
         {/* Header — fixed height */}
         <div className="flex-shrink-0 space-y-4 p-5">
           <div className="flex items-center gap-2 px-1 mb-2">
@@ -242,13 +249,13 @@ export function ChatSidebar({
               {Array.from({ length: 5 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-20 animate-pulse rounded-xl bg-[#1a1a1a]"
+                  className="h-20 animate-pulse rounded-xl bg-[var(--assistant-bubble)]"
                 />
               ))}
             </div>
           ) : !hasConversations ? (
             <div className="flex h-full flex-col items-center justify-center space-y-3 p-4 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1a1a1a]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--assistant-bubble)]">
                 <MessageSquare className="h-5 w-5 text-muted-foreground" />
               </div>
               <p className="text-sm text-muted-foreground">
@@ -288,7 +295,7 @@ export function ChatSidebar({
         </div>
 
         {/* Footer — fixed height */}
-        <div className="flex-shrink-0 border-t border-border/40 p-4 bg-[#0f0f0f]">
+        <div className="flex-shrink-0 border-t border-border/40 p-4 bg-[var(--bg-secondary)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/40 bg-indigo-600/20 text-indigo-500 font-medium shrink-0">
@@ -302,12 +309,24 @@ export function ChatSidebar({
               </div>
             </div>
             <div className="flex gap-1 shrink-0">
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                className="h-8 w-8 rounded-lg hover:bg-[var(--assistant-bubble)]" 
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              >
+                {theme === 'dark' ? (
+                  <Sun className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Moon className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
               {onOpenSettings && (
-                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-[#1a1a1a]" onClick={onOpenSettings}>
+                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-[var(--assistant-bubble)]" onClick={onOpenSettings}>
                   <Settings className="h-4 w-4 text-muted-foreground" />
                 </Button>
               )}
-              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-[#1a1a1a] hover:text-destructive text-muted-foreground" onClick={logoutUser}>
+              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-[var(--assistant-bubble)] hover:text-destructive text-[var(--text-secondary)]" onClick={logoutUser}>
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>

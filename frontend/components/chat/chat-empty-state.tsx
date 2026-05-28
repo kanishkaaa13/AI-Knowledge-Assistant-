@@ -13,7 +13,7 @@ export function ChatEmptyState({ onUsePrompt }: { onUsePrompt?: (prompt: string)
         <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-500 shadow-lg shadow-indigo-500/5">
           <Sparkles className="h-8 w-8" />
         </div>
-        <h2 className="mb-8 text-2xl font-medium tracking-tight text-[#f1f1f1] sm:text-3xl">
+        <h2 className="mb-8 text-2xl font-medium tracking-tight text-[var(--text-primary)] sm:text-3xl">
           Ask anything about your documents
         </h2>
 
@@ -23,7 +23,7 @@ export function ChatEmptyState({ onUsePrompt }: { onUsePrompt?: (prompt: string)
               key={prompt}
               type="button"
               onClick={() => onUsePrompt?.(prompt)}
-              className="rounded-full border border-[#2d2d2d] bg-[#1a1a1a] px-5 py-2.5 text-sm text-[#f1f1f1] transition-colors hover:border-[#6366f1] hover:bg-[#6366f1]/10"
+              className="rounded-full border border-[var(--border-color)] bg-[var(--assistant-bubble)] px-5 py-2.5 text-sm text-[var(--text-primary)] transition-colors hover:border-[#6366f1] hover:bg-[#6366f1]/10"
             >
               {prompt}
             </button>
