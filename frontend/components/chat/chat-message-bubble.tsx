@@ -25,6 +25,7 @@ export function ChatMessageBubble({
   }
 
   if (isError) {
+    const errorText = message.content.replace(/^⚠️ Error: /, "").replace(/^\{"detail":\s*"(.*)"\}$/, "$1");
     return (
       <article className="flex gap-4 justify-start">
         <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
@@ -35,7 +36,7 @@ export function ChatMessageBubble({
             <Bot className="h-3.5 w-3.5" />
             Error
           </div>
-          <div className="text-sm text-destructive/90">{message.content}</div>
+          <div className="text-sm text-destructive/90">{errorText}</div>
           <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
             <span>{message.createdAt}</span>
           </div>
