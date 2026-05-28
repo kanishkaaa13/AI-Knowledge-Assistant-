@@ -79,8 +79,8 @@ class AssistantChatService:
         except Exception:
             logger.exception("Ollama generation failed.")
             answer = (
-                "🤖 Unable to reach the local Ollama service. "
-                "Make sure you have run `ollama run llama3` in your terminal."
+                "DeepSeek model is not running. Please run: "
+                "ollama pull deepseek-r1:7b && ollama serve"
             )
 
         return {
@@ -150,8 +150,8 @@ class AssistantChatService:
         except Exception:
             logger.warning("Ollama availability check failed — returning diagnostic message.")
             msg = (
-                "🤖 Unable to reach the local Ollama service. "
-                "Ensure the desktop app is open and run `ollama pull llama3` in your terminal."
+                "DeepSeek model is not running. Please run: "
+                "ollama pull deepseek-r1:7b && ollama serve"
             )
             yield f"data: {json.dumps({'type': 'token', 'content': msg})}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'answer': msg, 'prompt': prompt})}\n\n"

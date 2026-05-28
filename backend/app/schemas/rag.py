@@ -38,7 +38,7 @@ class AssistantQueryRequest(BaseModel):
     query: str = Field(min_length=1)
     top_k: int | None = Field(default=None, ge=1, le=12)
     hybrid: bool = True
-    model: str = "llama3"
+    model: str = "deepseek-r1:7b"
     conversation_id: uuid.UUID | None = None
     document_ids: list[str] = Field(default_factory=list)
 

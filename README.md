@@ -117,7 +117,7 @@ LLM_MODEL_NAME=gpt-4.1-mini
 LLM_API_KEY=
 LLM_BASE_URL=
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_DEFAULT_MODEL=llama3
+OLLAMA_DEFAULT_MODEL=deepseek-r1:7b
 OLLAMA_KEEP_ALIVE=5m
 BACKEND_CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
 ```
@@ -128,10 +128,11 @@ Create a PostgreSQL database named `ai_knowledge_assistant` and update `DATABASE
 
 ### 3. Start Ollama and pull local models
 
+Run: ollama pull deepseek-r1:7b before starting the backend
+
 ```bash
 ollama serve
-ollama pull llama3
-ollama pull mistral
+ollama pull deepseek-r1:7b
 ```
 
 ### 4. Install frontend dependencies
@@ -198,7 +199,7 @@ npm run frontend:lint
 - LangChain + Sentence Transformers + ChromaDB RAG pipeline
 - Semantic retrieval, top-k context assembly, and prompt templating
 - Per-user ChromaDB collections with vector metadata and hybrid retrieval
-- Ollama local LLM chat generation with `llama3` and `mistral`
+- Ollama local LLM chat generation with `deepseek-r1:7b`, `llama3`, and `mistral`
 - Streaming grounded answers in the chat UI with markdown rendering
 - Environment variable management for frontend and backend
 - PostgreSQL-ready SQLAlchemy session setup

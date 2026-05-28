@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 
 from app.core.config import settings
 
-SUPPORTED_OLLAMA_MODELS = {"llama3", "mistral"}
+SUPPORTED_OLLAMA_MODELS = {"llama3", "mistral", "deepseek-r1:7b"}
 
 
 class OllamaLLMService:

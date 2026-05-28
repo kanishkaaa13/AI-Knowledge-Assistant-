@@ -47,6 +47,6 @@ def __safe_generate(prompt: str) -> str:
     import asyncio
 
     async def _run():
-        return await OllamaLLMService().generate(prompt=prompt, model="llama3")
+        return await OllamaLLMService().generate(prompt=prompt, model="deepseek-r1:7b")
 
     return asyncio.run(_run())
