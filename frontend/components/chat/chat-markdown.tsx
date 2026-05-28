@@ -34,12 +34,14 @@ export function ChatMarkdown({
         rehypePlugins={[rehypeHighlight]}
         components={{
           pre(props) {
+            const child = props.children as any;
             const codeText =
-              typeof props.children === "object" &&
-              props.children &&
-              "props" in props.children &&
-              typeof props.children.props.children === "string"
-                ? props.children.props.children
+              child &&
+              typeof child === "object" &&
+              "props" in child &&
+              child.props &&
+              typeof child.props.children === "string"
+                ? child.props.children
                 : "";
 
             return (

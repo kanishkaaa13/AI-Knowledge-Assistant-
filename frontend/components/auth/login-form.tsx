@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ export function LoginForm() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting }
   } = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
@@ -33,7 +35,21 @@ export function LoginForm() {
     try {
       await loginUser(values, redirectTo);
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail ?? "Unable to log in.");
+      const detail = error?.response?.data?.detail;
+      let message = "Unable to log in.";
+
+      if (detail === "User not found") {
+        message = "User not found";
+      } else if (detail === "Incorrect password") {
+        message = "Incorrect password";
+      } else if (detail === "Account inactive") {
+        message = "Account inactive";
+      } else if (typeof detail === "string") {
+        message = detail;
+      }
+
+      setError("password", { type: "server", message });
+      toast.error(message);
     }
   };
 
@@ -54,7 +70,14 @@ export function LoginForm() {
       </div>
 
       <Button className="w-full" size="lg" type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Signing in..." : "Sign in"}
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Signing in...
+          </>
+        ) : (
+          "Sign in"
+        )}
       </Button>
 
       <p className="text-sm text-muted-foreground">
@@ -66,3 +89,4 @@ export function LoginForm() {
     </form>
   );
 }
+

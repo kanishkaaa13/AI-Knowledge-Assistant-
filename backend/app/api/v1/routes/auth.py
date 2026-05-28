@@ -102,27 +102,38 @@ async def login(
     email_clean = ensure_present(sanitize_text(payload.email, max_length=255).lower(), field_name="email")
     
     try:
-        # 1. Log whether the user was found by email in the database
+        # 1. Check if user is found by email in the database
         user_in_db = get_user_by_email(db, email_clean)
-        if user_in_db:
-            logger.info("Login check: User found by email '%s' in database.", email_clean)
-            
-            # 2. Log whether bcrypt password verification passed or failed
-            password_verified = verify_password(payload.password, user_in_db.hashed_password)
-            if password_verified:
-                logger.info("Login check: Password verification passed (bcrypt match) for email '%s'.", email_clean)
-            else:
-                logger.warning("Login check: Password verification failed (bcrypt mismatch) for email '%s'.", email_clean)
-        else:
-            logger.info("Login check: User NOT found by email '%s' in database.", email_clean)
-
-        # Authenticate user using the service helper
-        user = authenticate_user(db, email_clean, payload.password)
-        if not user:
+        if not user_in_db:
+            logger.warning("Login check: User NOT found by email '%s' in database.", email_clean)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password.",
+                detail="User not found",
             )
+        
+        logger.info("Login check: User found by email '%s' in database.", email_clean)
+        
+        # 2. Check password verification
+        password_verified = verify_password(payload.password, user_in_db.hashed_password)
+        if not password_verified:
+            logger.warning("Login check: Password verification failed (bcrypt mismatch) for email '%s'.", email_clean)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect password",
+            )
+            
+        logger.info("Login check: Password verification passed (bcrypt match) for email '%s'.", email_clean)
+        
+        # 3. Check if user is active (default to True)
+        is_active = getattr(user_in_db, "is_active", True)
+        if not is_active:
+            logger.warning("Login check: Account is inactive for email '%s'.", email_clean)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account inactive",
+            )
+
+        user = user_in_db
             
     except HTTPException:
         # Re-raise standard HTTP exceptions
@@ -137,6 +148,7 @@ async def login(
 
     set_auth_cookies(response, user)
     return AuthResponse(user=UserRead.model_validate(user), message="Logged in successfully.")
+
 
 
 
