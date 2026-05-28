@@ -24,3 +24,26 @@ def create_user(db: Session, payload: UserCreate) -> User:
     db.commit()
     db.refresh(user)
     return user
+
+
+def authenticate_user(db: Session, email: str, password: str) -> User | None:
+    """
+    Authenticate a user by email and password.
+    Queries the user by email case-insensitively using SQLAlchemy,
+    verifies the password against the stored hash,
+    and returns the User object if successful, or None if not found or mismatch.
+    """
+    from sqlalchemy import func, select
+    
+    normalized_email = sanitize_text(email, max_length=255).lower()
+    statement = select(User).where(func.lower(User.email) == normalized_email)
+    user = db.scalar(statement)
+    
+    if not user:
+        return None
+        
+    if not verify_password(password, user.hashed_password):
+        return None
+        
+    return user
+

@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -12,8 +13,9 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import AuthResponse, UserLogin
 from app.schemas.user import UserCreate, UserRead
-from app.services.auth import create_user, get_user_by_email, verify_password
+from app.services.auth import authenticate_user, create_user, get_user_by_email, verify_password
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -97,16 +99,45 @@ async def login(
         HTTPException: If authentication fails due to invalid credentials
     """
     apply_rate_limit(request, scope="auth-login", limit=8)
-    payload.email = ensure_present(sanitize_text(payload.email, max_length=255).lower(), field_name="email")
-    user = get_user_by_email(db, payload.email)
-    if not user or not verify_password(payload.password, user.hashed_password):
+    email_clean = ensure_present(sanitize_text(payload.email, max_length=255).lower(), field_name="email")
+    
+    try:
+        # 1. Log whether the user was found by email in the database
+        user_in_db = get_user_by_email(db, email_clean)
+        if user_in_db:
+            logger.info("Login check: User found by email '%s' in database.", email_clean)
+            
+            # 2. Log whether bcrypt password verification passed or failed
+            password_verified = verify_password(payload.password, user_in_db.hashed_password)
+            if password_verified:
+                logger.info("Login check: Password verification passed (bcrypt match) for email '%s'.", email_clean)
+            else:
+                logger.warning("Login check: Password verification failed (bcrypt mismatch) for email '%s'.", email_clean)
+        else:
+            logger.info("Login check: User NOT found by email '%s' in database.", email_clean)
+
+        # Authenticate user using the service helper
+        user = authenticate_user(db, email_clean, payload.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password.",
+            )
+            
+    except HTTPException:
+        # Re-raise standard HTTP exceptions
+        raise
+    except Exception as e:
+        # 3. Log the exact exception if any is raised
+        logger.exception("Login error: Exact exception raised during authentication: %s", str(e))
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred during authentication.",
         )
 
     set_auth_cookies(response, user)
     return AuthResponse(user=UserRead.model_validate(user), message="Logged in successfully.")
+
 
 
 @router.post("/refresh", response_model=AuthResponse)

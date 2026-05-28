@@ -46,9 +46,13 @@ def create_application() -> FastAPI:
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(JWTContextMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
+    origins = list(settings.BACKEND_CORS_ORIGINS)
+    if "http://localhost:3000" not in origins:
+        origins.append("http://localhost:3000")
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.BACKEND_CORS_ORIGINS,
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
