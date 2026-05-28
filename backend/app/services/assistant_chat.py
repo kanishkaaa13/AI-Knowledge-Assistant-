@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 import httpx
 from fastapi import HTTPException
 
+from app.core.config import settings
 from app.models.user import User
 from app.services.ollama_llm import OllamaLLMService
 from app.services.prompt_builder import build_rag_prompt
@@ -60,8 +61,14 @@ class AssistantChatService:
             chunks = _format_chunks(search_results)
 
             if not search_results:
-                # Fall back to direct LLM instead of returning error string
-                prompt = f"You are a helpful AI assistant.\n\nUser: {query}\nAssistant:"
+                # Fall back to direct LLM with a note that no docs matched
+                prompt = (
+                    "You are a helpful AI assistant. "
+                    "The user asked about their documents but no relevant content was found in them. "
+                    "Answer helpfully from your general knowledge and start your reply with: "
+                    "\"I couldn't find this in your documents, but based on general knowledge: \""
+                    f"\n\nUser question: {query}\nAssistant:"
+                )
                 context = ""
                 chunks = []
             else:
@@ -162,12 +169,13 @@ class AssistantChatService:
         if context:
             prompt = build_rag_prompt(query=query, context=context)
         else:
-            # No context found — answer directly instead of returning error string
+            # No context found — answer from general knowledge with a disclaimer
             prompt = (
-                "You are a helpful AI assistant.\n"
-                "The user selected documents but no relevant content was found.\n"
-                "Answer helpfully from general knowledge and mention the documents had no matches.\n\n"
-                f"User: {query}\nAssistant:"
+                "You are a helpful AI assistant. "
+                "The user asked about their documents but no relevant content was found in them. "
+                "Answer helpfully from your general knowledge and start your reply with: "
+                "\"I couldn't find this in your documents, but based on general knowledge: \""
+                f"\n\nUser question: {query}\nAssistant:"
             )
         
         print(f"[STREAM] Prompt length: {len(prompt)} chars")

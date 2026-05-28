@@ -231,7 +231,20 @@ async def reindex_document(
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
-    RAGIngestionService(db).update_document_index(document)
+    print(f"[REINDEX] Starting reindex for doc {document.id} ({document.file_name!r})")
+    print(f"[REINDEX] Extracted text length: {len(document.extracted_text or '')} chars")
+    print(f"[REINDEX] User: {current_user.id}")
+
+    try:
+        chunks = RAGIngestionService(db).index_document(document)
+        print(f"[REINDEX] Storing {len(chunks)} chunks for doc {document_id}")
+        print(f"[REINDEX] Complete ✓")
+    except Exception as e:
+        import traceback
+        print(f"[REINDEX ERROR] {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Reindex failed: {e}")
+
+    db.refresh(document)
     return UploadedDocumentRead.model_validate(document)
 
 

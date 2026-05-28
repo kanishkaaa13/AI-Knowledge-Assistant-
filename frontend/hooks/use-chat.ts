@@ -452,7 +452,8 @@ export function useChat() {
 
     try {
       const effectiveDocumentIds = selectedDocumentIds;
-      console.log("[SEND] payload:", { query: prompt, document_ids: effectiveDocumentIds });
+      console.log("[SEND] Selected doc IDs being sent:", effectiveDocumentIds);
+      console.log("[SEND] Full payload:", { query: prompt, document_ids: effectiveDocumentIds, model: "llama3.2:3b" });
       if (settings.streamResponses) {
         await streamAssistantChat(
           {

@@ -203,7 +203,12 @@ class VectorStoreService:
 
             # Verify the collection has data
             count = collection.count()
+            print(f"[RAG] Query: {query!r}")
+            print(f"[RAG] Selected doc IDs: {document_ids!r}")
+            print(f"[RAG] ChromaDB collection '{self._collection_name(user_id)}' has {count} total vectors")
+
             if count == 0:
+                print(f"[RAG] Collection is EMPTY — documents may not have been indexed yet")
                 logger.debug("Collection for user %s is empty.", user_id)
                 return []
 
@@ -226,22 +231,44 @@ class VectorStoreService:
                         ]
                     }
 
+            print(f"[RAG] WHERE clause: {where_clause}")
+
             # Clamp n_results to the actual collection size
             n_results = min(top_k, count)
 
-            results = collection.query(
-                query_embeddings=[query_embedding],
-                n_results=n_results,
-                where=where_clause,
-                include=["documents", "metadatas", "distances"],
-            )
+            try:
+                results = collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=n_results,
+                    where=where_clause,
+                    include=["documents", "metadatas", "distances"],
+                )
+            except Exception as e:
+                print(f"[RAG] ChromaDB query FAILED: {e}")
+                # If filter caused error, try without filter as fallback
+                try:
+                    print(f"[RAG] Retrying without document_id filter...")
+                    results = collection.query(
+                        query_embeddings=[query_embedding],
+                        n_results=n_results,
+                        where={"user_id": str(user_id)},
+                        include=["documents", "metadatas", "distances"],
+                    )
+                    print(f"[RAG] Fallback query returned {len(results.get('ids', [[]])[0])} results")
+                except Exception as e2:
+                    print(f"[RAG] Fallback query also FAILED: {e2}")
+                    return []
 
-            formatted: list[VectorSearchResult] = []
             ids_list = results.get("ids", [[]])[0]
             docs_list = results.get("documents", [[]])[0]
             meta_list = results.get("metadatas", [[]])[0]
             dist_list = results.get("distances", [[]])[0]
 
+            print(f"[RAG] ChromaDB returned {len(ids_list)} results")
+            if meta_list:
+                print(f"[RAG] First result metadata: {meta_list[0]}")
+
+            formatted: list[VectorSearchResult] = []
             for vid, doc, meta, dist in zip(ids_list, docs_list, meta_list, dist_list):
                 semantic_score = max(0.0, 1.0 - float(dist or 0.0))
                 formatted.append(

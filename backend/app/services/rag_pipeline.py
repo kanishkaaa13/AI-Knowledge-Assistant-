@@ -14,11 +14,37 @@ from app.models.user import User
 from app.repositories.chunk import DocumentChunkRepository
 from app.repositories.document import DocumentRepository
 from app.schemas.rag import RetrievedChunk, RetrievalResponse
-from app.services.document_parser import StoredDocumentParser
-from app.services.text_chunker import DocumentChunker
 from app.services.vector_store import VectorRecord, VectorSearchResult, get_vector_store_service
 
 logger = logging.getLogger(__name__)
+
+
+def _chunk_text(text: str, chunk_size: int = 500, chunk_overlap: int = 50) -> list[str]:
+    """Simple word-boundary text chunker."""
+    import re
+    text = re.sub(r"\s+", " ", text.strip())
+    chunks: list[str] = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        if end < len(text):
+            # find sentence boundary
+            for i in range(end, max(start + chunk_size // 2, start), -1):
+                if text[i] in ".!?" and i + 1 < len(text) and text[i + 1] == " ":
+                    end = i + 1
+                    break
+            else:
+                for i in range(end, max(start + chunk_size // 2, start), -1):
+                    if text[i] == " ":
+                        end = i
+                        break
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        start = end - chunk_overlap
+        if start < 0:
+            start = 0
+    return chunks
 
 
 class RAGIngestionService:
@@ -28,25 +54,37 @@ class RAGIngestionService:
         self.db = db
         self.chunk_repository = DocumentChunkRepository(db)
         self.vector_store = get_vector_store_service()
-        self.chunker = DocumentChunker()
-        self.parser = StoredDocumentParser()
 
     def index_document(self, document: UploadedDocument) -> list[DocumentChunk]:
+        print(f"[INDEX] Starting indexing for document: {document.id} ({document.file_name!r})")
+        print(f"[INDEX] Document status: {document.status!r}")
+        print(f"[INDEX] Extracted text length: {len(document.extracted_text or '')} chars")
+
+        # Use extracted_text stored in DB — avoids re-parsing the (possibly encrypted) file
         if not document.extracted_text or not document.extracted_text.strip():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Document has no extractable text to index.",
             )
 
+        # Remove old chunks + vectors first
         existing_chunks = self.chunk_repository.list_by_document(document.id)
         if existing_chunks:
+            print(f"[INDEX] Removing {len(existing_chunks)} existing chunks before re-index")
             self.delete_document_index(document.id)
 
-        pages = self.parser.parse(document)
-        if not pages:
+        # Chunk the extracted text directly
+        raw_chunks = _chunk_text(
+            document.extracted_text,
+            chunk_size=settings.RAG_CHUNK_SIZE,
+            chunk_overlap=settings.RAG_CHUNK_OVERLAP,
+        )
+        print(f"[INDEX] Created {len(raw_chunks)} text chunks from extracted text")
+
+        if not raw_chunks:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Unable to parse stored document for indexing.",
+                detail="Document text could not be split into chunks.",
             )
 
         base_metadata = {
@@ -57,44 +95,42 @@ class RAGIngestionService:
             "upload_timestamp": document.created_at.isoformat(),
             "tags": document.tags or "",
         }
-        split_docs = self.chunker.chunk_pages(pages=pages, metadata=base_metadata)
 
         chunk_payloads: list[dict] = []
         vector_records: list[VectorRecord] = []
 
-        for index, split_doc in enumerate(split_docs):
+        for index, chunk_text in enumerate(raw_chunks):
             vector_id = f"{document.id}:{index}"
             chunk_payloads.append(
                 {
                     "document_id": document.id,
                     "chunk_index": index,
-                    "page_number": split_doc.page_number,
-                    "content": split_doc.content,
-                    "token_count": len(split_doc.content.split()),
+                    "page_number": None,
+                    "content": chunk_text,
+                    "token_count": len(chunk_text.split()),
                     "vector_id": vector_id,
                 }
             )
             vector_records.append(
                 VectorRecord(
                     id=vector_id,
-                    document=split_doc.content,
+                    document=chunk_text,
                     metadata={
-                        **split_doc.metadata,
+                        **base_metadata,
                         "chunk_index": index,
                         "chunk_id": vector_id,
-                        "page": str(split_doc.page_number or 1),
+                        "page": "1",
                     },
                 )
             )
 
         created_chunks = self.chunk_repository.bulk_create(chunk_payloads)
+        print(f"[INDEX] Stored {len(created_chunks)} chunk records in DB")
+
         try:
-            logger.info(
-                "Indexing %d chunks into ChromaDB for document %s…",
-                len(vector_records),
-                document.id,
-            )
+            print(f"[INDEX] Upserting {len(vector_records)} vectors into ChromaDB for user {document.user_id}")
             self.vector_store.upsert_vectors(user_id=document.user_id, records=vector_records)
+            print(f"[INDEX] ChromaDB upsert complete ✓")
         except Exception:
             logger.exception("ChromaDB upsert failed — rolling back chunk records.")
             for chunk in created_chunks:
@@ -108,7 +144,7 @@ class RAGIngestionService:
         self.db.commit()
         self.db.refresh(document)
         app_cache.delete_prefix(f"retrieval:{document.user_id}:")
-        logger.info("Document %s indexed successfully (%d chunks).", document.id, len(created_chunks))
+        print(f"[INDEX] Document {document.id} indexed successfully ({len(created_chunks)} chunks) ✓")
         return created_chunks
 
     def delete_document_index(self, document_id: uuid.UUID) -> None:
