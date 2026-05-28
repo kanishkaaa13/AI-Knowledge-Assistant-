@@ -10,6 +10,7 @@ from app.core.rate_limit import apply_rate_limit
 from app.core.sanitize import ensure_present, sanitize_text
 from app.db.session import get_db
 from app.models.user import User
+from app.models.uploaded_document import UploadedDocument
 from app.repositories.document import DocumentRepository
 from app.schemas.document import (
     DocumentListResponse,
@@ -97,10 +98,15 @@ async def upload_document(
     
     from app.services.document_processor import DocumentProcessor
     
-    processor = DocumentProcessor(chunk_size=500, chunk_overlap=50)
-    file_bytes = await file.read()
-    
     try:
+        from app.core.config import settings
+        print(f"[UPLOAD] Received file: {file.filename}, size: {file.size}")
+        print(f"[UPLOAD] User: {current_user.id}")
+        print(f"[UPLOAD] Storage path: {settings.UPLOAD_ROOT_DIR}")
+
+        processor = DocumentProcessor(chunk_size=500, chunk_overlap=50)
+        file_bytes = await file.read()
+        
         processed = processor.process_document(
             db=db,
             user_id=current_user.id,
@@ -110,7 +116,6 @@ async def upload_document(
             mime_type=file.content_type,
         )
 
-        # Fetch the saved document ORM object
         document = db.get(UploadedDocument, processed.document_id)
         if document is None:
             raise HTTPException(
@@ -118,34 +123,20 @@ async def upload_document(
                 detail="Document record not found after processing.",
             )
 
-        # Index into ChromaDB so the document is immediately searchable
         try:
             RAGIngestionService(db).index_document(document)
-        except Exception:
-            import logging as _logging
-            _logging.getLogger(__name__).exception(
-                "ChromaDB indexing failed for document %s — document saved but not searchable.",
-                document.id,
-            )
-            document.status = "error"
+        except Exception as e:
+            print(f"[INDEX ERROR] {e}")
+            document.status = "pending"
             db.add(document)
             db.commit()
             db.refresh(document)
 
         return UploadedDocumentRead.model_validate(document)
-    except HTTPException:
-        raise
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception:
-        import logging as _logging
-        _logging.getLogger(__name__).exception(
-            "Unexpected error during document upload for user %s.", current_user.id
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while uploading the document.",
-        )
+    except Exception as e:
+        import traceback
+        print(f"[UPLOAD ERROR] {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{document_id}", response_model=UploadedDocumentRead)

@@ -100,38 +100,69 @@ export function ChatShell({
 }: ChatShellProps) {
   const { user } = useAuth();
   const [isToolsOpen, setIsToolsOpen] = React.useState(false);
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+
+  React.useEffect(() => {
+    const saved = localStorage.getItem('sidebarOpen');
+    if (saved !== null) {
+      setSidebarOpen(saved === 'true');
+    } else {
+      setSidebarOpen(window.innerWidth >= 768);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    localStorage.setItem('sidebarOpen', String(sidebarOpen));
+  }, [sidebarOpen]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--bg-primary)]">
-      <div className="hidden xl:flex xl:flex-shrink-0 h-full">
-        <ChatSidebar
-          activeConversationId={activeConversationId}
-          groupedConversations={groupedConversations}
-          historySearch={historySearch}
-          isLoading={isHistoryLoading}
-          onCreateConversation={onCreateConversation}
-          onDeleteConversation={onDeleteConversation}
-          onExportConversation={onExportConversation}
-          onFavoriteConversation={onFavoriteConversation}
-          onHistorySearchChange={onHistorySearchChange}
-          onRenameConversation={onRenameConversation}
-          onSelectConversation={onSelectConversation}
-          onOpenSettings={() => onSettingsOpenChange(true)}
-        />
-      </div>
+      <ChatSidebar
+        activeConversationId={activeConversationId}
+        groupedConversations={groupedConversations}
+        historySearch={historySearch}
+        isLoading={isHistoryLoading}
+        onCreateConversation={onCreateConversation}
+        onDeleteConversation={onDeleteConversation}
+        onExportConversation={onExportConversation}
+        onFavoriteConversation={onFavoriteConversation}
+        onHistorySearchChange={onHistorySearchChange}
+        onRenameConversation={onRenameConversation}
+        onSelectConversation={onSelectConversation}
+        onOpenSettings={() => onSettingsOpenChange(true)}
+        sidebarOpen={sidebarOpen}
+      />
 
       <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg-chat)]">
         <header className="sticky top-0 z-20 border-b border-[var(--border-color)] bg-[var(--bg-primary)]/80 backdrop-blur-xl flex-shrink-0">
           <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3">
-              <Button
-                className="xl:hidden"
-                size="sm"
-                variant="secondary"
-                onClick={() => onSidebarOpenChange(true)}
+              <button
+                onClick={() => setSidebarOpen(prev => !prev)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                  padding: '6px 8px',
+                  borderRadius: '8px',
+                  fontSize: '18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  transition: 'color 0.15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#d1d1d1')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#6b7280')}
+                title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
               >
-                <Menu className="h-4 w-4" />
-              </Button>
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <rect x="2" y="3" width="14" height="2" rx="1" fill="currentColor"/>
+                  <rect x="2" y="8" width="14" height="2" rx="1" fill="currentColor"/>
+                  <rect x="2" y="13" width="14" height="2" rx="1" fill="currentColor"/>
+                </svg>
+              </button>
               <ChatHeader
                 title={activeConversationTitle ?? "New conversation"}
                 subtitle="Chat with your private knowledge assistant"
@@ -192,22 +223,7 @@ export function ChatShell({
         onSelectedDocumentIdsChange={onSelectedDocumentIdsChange}
       />
 
-      <MobileSidebar open={isSidebarOpen} onOpenChange={onSidebarOpenChange}>
-        <ChatSidebar
-          activeConversationId={activeConversationId}
-          groupedConversations={groupedConversations}
-          historySearch={historySearch}
-          isLoading={isHistoryLoading}
-          onCreateConversation={onCreateConversation}
-          onDeleteConversation={onDeleteConversation}
-          onExportConversation={onExportConversation}
-          onFavoriteConversation={onFavoriteConversation}
-          onHistorySearchChange={onHistorySearchChange}
-          onRenameConversation={onRenameConversation}
-          onSelectConversation={onSelectConversation}
-          onOpenSettings={() => onSettingsOpenChange(true)}
-        />
-      </MobileSidebar>
+
 
       <Dialog open={isToolsOpen} onOpenChange={setIsToolsOpen}>
         <DialogContent className="right-0 top-0 h-screen max-w-[340px] translate-x-0 translate-y-0 rounded-none border-l p-0 xl:hidden">

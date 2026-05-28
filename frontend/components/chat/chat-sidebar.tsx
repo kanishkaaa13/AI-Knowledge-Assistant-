@@ -153,7 +153,8 @@ export function ChatSidebar({
   onHistorySearchChange,
   onRenameConversation,
   onSelectConversation,
-  onOpenSettings
+  onOpenSettings,
+  sidebarOpen,
 }: {
   activeConversationId?: string;
   groupedConversations: ConversationGroup[];
@@ -167,6 +168,7 @@ export function ChatSidebar({
   onRenameConversation: (conversationId: string, title: string) => Promise<void>;
   onSelectConversation: (conversationId: string) => void;
   onOpenSettings?: () => void;
+  sidebarOpen?: boolean;
 }) {
   const [renameTarget, setRenameTarget] = React.useState<{
     id: string;
@@ -174,6 +176,7 @@ export function ChatSidebar({
   } | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
   const [isMounted, setIsMounted] = React.useState(false);
+  const [hoveredConvId, setHoveredConvId] = React.useState<string | null>(null);
   const { user, logoutUser } = useAuth();
   const { theme, setTheme } = useTheme();
 
@@ -216,15 +219,17 @@ export function ChatSidebar({
 
   return (
     <>
-      <aside style={{
-        width: '240px',
-        minWidth: '240px',
+      <aside className="sidebar-panel" style={{
+        width: sidebarOpen ? '240px' : '0px',
+        minWidth: sidebarOpen ? '240px' : '0px',
         height: '100vh',
         background: '#0d0d0d',
-        borderRight: '1px solid #1e1e1e',
+        borderRight: sidebarOpen ? '1px solid #1e1e1e' : 'none',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        transition: 'width 0.25s ease, min-width 0.25s ease',
+        flexShrink: 0,
       }}>
         
         {/* ── Header ── */}
@@ -319,35 +324,74 @@ export function ChatSidebar({
               {flattenedConversations.map(conv => (
                 <div
                   key={conv.id}
-                  onClick={() => onSelectConversation(conv.id)}
-                  style={{
-                    padding: '9px 10px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    marginBottom: '2px',
-                    background: activeConversationId === conv.id ? '#1e1e2e' : 'transparent',
-                    borderLeft: activeConversationId === conv.id ? '2px solid #6366f1' : '2px solid transparent',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={e => {
-                    if (activeConversationId !== conv.id)
-                      (e.currentTarget as HTMLElement).style.background = '#161616'
-                  }}
-                  onMouseLeave={e => {
-                    if (activeConversationId !== conv.id)
-                      (e.currentTarget as HTMLElement).style.background = 'transparent'
-                  }}
+                  style={{ position: 'relative' }}
+                  className="conv-item-wrapper"
+                  onMouseEnter={() => setHoveredConvId(conv.id)}
+                  onMouseLeave={() => setHoveredConvId(null)}
                 >
-                  <div style={{
-                    fontSize: '12.5px', fontWeight: 500, color: '#d1d1d1',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    marginBottom: '3px',
-                  }}>
-                    {conv.title || 'New conversation'}
+                  <div
+                    onClick={() => onSelectConversation(conv.id)}
+                    style={{
+                      padding: '9px 10px',
+                      paddingRight: hoveredConvId === conv.id ? '30px' : '10px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      marginBottom: '2px',
+                      background: activeConversationId === conv.id ? '#1e1e2e' : 'transparent',
+                      borderLeft: activeConversationId === conv.id ? '2px solid #6366f1' : '2px solid transparent',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={e => {
+                      if (activeConversationId !== conv.id)
+                        (e.currentTarget as HTMLElement).style.background = '#161616'
+                    }}
+                    onMouseLeave={e => {
+                      if (activeConversationId !== conv.id)
+                        (e.currentTarget as HTMLElement).style.background = 'transparent'
+                    }}
+                  >
+                    <div style={{
+                      fontSize: '12.5px', fontWeight: 500, color: '#d1d1d1',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      marginBottom: '3px',
+                    }}>
+                      {conv.title || 'New conversation'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#444' }}>
+                      {formatRelativeTime(conv.updatedAt)}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#444' }}>
-                    {formatRelativeTime(conv.updatedAt)}
-                  </div>
+                  
+                  {hoveredConvId === conv.id && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        if (!confirm('Delete this conversation?')) return
+                        try {
+                          await onDeleteConversation(conv.id)
+                        } catch (err) {
+                          console.error('Delete failed:', err)
+                        }
+                      }}
+                      style={{
+                        position: 'absolute',
+                        right: '6px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        padding: '4px',
+                        borderRadius: '4px',
+                        lineHeight: 1,
+                      }}
+                      title="Delete conversation"
+                    >
+                      🗑
+                    </button>
+                  )}
                 </div>
               ))}
             </>
