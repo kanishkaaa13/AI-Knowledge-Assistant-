@@ -99,8 +99,8 @@ export function ChatShell({
   const { user } = useAuth();
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <div className="hidden xl:block">
+    <div className="flex h-screen overflow-hidden bg-background">
+      <div className="hidden xl:flex xl:flex-shrink-0">
         <ChatSidebar
           activeConversationId={activeConversationId}
           groupedConversations={groupedConversations}
@@ -116,7 +116,7 @@ export function ChatShell({
         />
       </div>
 
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         <header className="sticky top-0 z-20 border-b border-border/60 bg-background/85 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3">
@@ -138,7 +138,7 @@ export function ChatShell({
           </div>
         </header>
 
-        <main className="flex min-h-0 flex-1">
+        <main className="flex min-h-0 flex-1 overflow-hidden">
           <div className="flex min-w-0 flex-1 flex-col">
             <ChatThread
               isLoading={isConversationLoading}
