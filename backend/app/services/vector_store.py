@@ -127,6 +127,7 @@ class VectorStoreService:
         user_id: uuid.UUID,
         query: str,
         top_k: int = 4,
+        document_ids: list[str] | None = None,
     ) -> list[VectorSearchResult]:
         """
         Perform semantic similarity search on user's collection.
@@ -135,6 +136,7 @@ class VectorStoreService:
             user_id: User UUID for collection isolation
             query: Search query text
             top_k: Number of top results to return
+            document_ids: Optional list of document IDs to restrict search
 
         Returns:
             List of VectorSearchResult with document, metadata, and scores
@@ -145,11 +147,19 @@ class VectorStoreService:
             # Generate query embedding
             query_embedding = embedding_model.encode(query, show_progress_bar=False).tolist()
 
+            # Prepare where clause
+            where_clause = {"user_id": str(user_id)}
+            if document_ids:
+                if len(document_ids) == 1:
+                    where_clause = {"$and": [{"user_id": str(user_id)}, {"document_id": document_ids[0]}]}
+                else:
+                    where_clause = {"$and": [{"user_id": str(user_id)}, {"document_id": {"$in": document_ids}}]}
+
             # Query ChromaDB
             results = collection.query(
                 query_embeddings=[query_embedding],
                 n_results=top_k,
-                where={"user_id": str(user_id)},
+                where=where_clause,
                 include=["documents", "metadatas", "distances"],
             )
 
@@ -181,6 +191,51 @@ class VectorStoreService:
         
         # Run blocking operations in thread pool to avoid blocking async event loop
         return await asyncio.to_thread(_search_sync, embedding_model)
+
+    def upsert_vectors(self, user_id: uuid.UUID, records: list[VectorRecord]) -> None:
+        """Upsert vector records to the user collection."""
+        if not records:
+            return
+            
+        chunks_list = []
+        for r in records:
+            chunks_list.append({
+                "id": r.id,
+                "content": r.document,
+                "metadata": r.metadata,
+                "document_id": r.metadata.get("document_id", ""),
+                "filename": r.metadata.get("filename", ""),
+                "chunk_index": r.metadata.get("chunk_index", 0),
+            })
+        self.add_documents_to_vector_store(user_id, chunks_list)
+        
+    def delete_vectors(self, user_id: uuid.UUID, ids: list[str]) -> None:
+        """Delete specific vectors by their ID."""
+        if not ids:
+            return
+        collection = self._get_or_create_collection(user_id)
+        collection.delete(ids=ids)
+
+    def hybrid_similarity_search(
+        self,
+        user_id: uuid.UUID,
+        query: str,
+        top_k: int = 4,
+        document_ids: list[str] | None = None,
+    ) -> list[VectorSearchResult]:
+        """Performs a hybrid semantic search. For now, maps directly to semantic search in ChromaDB."""
+        # For a full hybrid search, BM25 should be combined with ChromaDB, but this stub unblocks the pipeline.
+        return asyncio.run(self.similarity_search(user_id, query, top_k, document_ids))
+
+    def semantic_similarity_search(
+        self,
+        user_id: uuid.UUID,
+        query: str,
+        top_k: int = 4,
+        document_ids: list[str] | None = None,
+    ) -> list[VectorSearchResult]:
+        """Wrapper for semantic search to fulfill interface expectations."""
+        return asyncio.run(self.similarity_search(user_id, query, top_k, document_ids))
 
     def delete_documents(
         self,

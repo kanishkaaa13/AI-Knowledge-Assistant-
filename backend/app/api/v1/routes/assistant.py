@@ -170,13 +170,18 @@ async def stream_assistant_chat(
                 if data.get("type") == "token":
                     full_answer += data.get("content", "")
                 elif data.get("type") == "done":
-                    updated_conversation = memory.sync_conversation_after_response(
-                        conversation=conversation,
-                        user_message=payload.query,
-                        assistant_message=full_answer.strip() or "I cannot find that information in your uploaded documents.",
-                    )
-                    data["conversation_id"] = str(updated_conversation.id)
-                    data["conversation_title"] = updated_conversation.title
+                    from app.db.session import db_manager
+                    from app.models.conversation import Conversation
+                    with db_manager.session_factory() as local_db:
+                        local_memory = ChatMemoryService(local_db)
+                        local_conversation = local_db.get(Conversation, conversation.id)
+                        updated_conversation = local_memory.sync_conversation_after_response(
+                            conversation=local_conversation,
+                            user_message=payload.query,
+                            assistant_message=full_answer.strip() or "I cannot find that information in your uploaded documents.",
+                        )
+                        data["conversation_id"] = str(updated_conversation.id)
+                        data["conversation_title"] = updated_conversation.title
                 elif data.get("type") == "context":
                     data["conversation_id"] = str(conversation.id)
                     data["conversation_title"] = conversation.title

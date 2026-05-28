@@ -35,6 +35,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const refreshUser = React.useCallback(async () => {
+    // Skip refresh on public routes (login/register)
+    const isPublicRoute = pathname === "/login" || pathname === "/register";
+    if (isPublicRoute) {
+      setStatus("unauthenticated");
+      setUser(null);
+      setClientAuthCookie(false);
+      return;
+    }
+
     setStatus("loading");
 
     try {
@@ -43,12 +52,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
       setStatus("authenticated");
       setClientAuthCookie(true);
-    } catch {
+    } catch (error) {
+      // Clear all auth-related data on failure
       setUser(null);
       setStatus("unauthenticated");
       setClientAuthCookie(false);
+      
+      // Clear localStorage and cookies on auth failure
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        // Clear all cookies
+        document.cookie.split(";").forEach((c) => {
+          document.cookie = c
+            .replace(/^ +/, "")
+            .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+      }
     }
-  }, []);
+  }, [pathname]);
 
   React.useEffect(() => {
     void refreshUser();

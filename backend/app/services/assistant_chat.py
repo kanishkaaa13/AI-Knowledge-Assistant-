@@ -33,6 +33,7 @@ class AssistantChatService:
                 user_id=user.id,
                 query=query,
                 top_k=top_k,
+                document_ids=document_ids,
             )
         except Exception as e:
             print("WARNING: ChromaDB retrieval failed:")
@@ -90,6 +91,7 @@ class AssistantChatService:
                 user_id=user.id,
                 query=query,
                 top_k=top_k,
+                document_ids=document_ids,
             )
         except Exception as e:
             print("WARNING: ChromaDB retrieval failed:")
@@ -121,7 +123,7 @@ class AssistantChatService:
         # Check Ollama availability before streaming
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get("http://localhost:11434", timeout=2.0)
+                response = await client.get(self.ollama_service.base_url, timeout=2.0)
                 if response.status_code != 200:
                     raise ValueError("Ollama engine offline")
         except Exception:

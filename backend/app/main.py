@@ -43,6 +43,9 @@ def create_application() -> FastAPI:
         redoc_url="/redoc" if settings.APP_ENV.lower() != "production" else None,
     )
 
+    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(JWTContextMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -50,9 +53,6 @@ def create_application() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(SecurityHeadersMiddleware)
-    app.add_middleware(JWTContextMiddleware)
-    app.add_middleware(RateLimitMiddleware)
     register_exception_handlers(app)
 
     # Mount static file serving for uploads
