@@ -36,7 +36,7 @@ class AssistantFeatureService:
 
         if not search_results:
             return {
-                "summary": "I cannot find that information in your uploaded documents.",
+                "summary": "I was unable to generate a response. Please try again.",
                 "chunks": [],
                 "context": "",
             }
@@ -49,7 +49,7 @@ class AssistantFeatureService:
         summary = await self.ollama.generate(prompt=prompt, model=model)
         
         return {
-            "summary": summary.strip() or "I cannot find that information in your uploaded documents.",
+            "summary": summary.strip() or "I was unable to generate a response. Please try again.",
             "chunks": [{"content": result.document, "metadata": result.metadata} for result in search_results],
             "context": context,
         }

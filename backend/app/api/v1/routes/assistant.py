@@ -208,7 +208,7 @@ async def stream_assistant_chat(
                         local_memory = ChatMemoryService(local_db)
                         local_conversation = local_db.get(Conversation, conversation_id)
                         if local_conversation:
-                            final_answer = full_answer.strip() or "I cannot find that information in your uploaded documents."
+                            final_answer = full_answer.strip() or "I was unable to generate a response. Please try again."
                             updated = local_memory.sync_conversation_after_response(
                                 conversation=local_conversation,
                                 user_message=payload.query,

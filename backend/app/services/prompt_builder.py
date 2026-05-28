@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
 
 GROUNDED_RAG_PROMPT_TEMPLATE = ChatPromptTemplate.from_template(
-    """You are a helpful knowledge assistant. Use exclusively the following pieces of context to answer the user's question. If the answer cannot be found in the context, say exactly: 'I cannot find that information in your uploaded documents.' Do not make up answers.
+    """You are a helpful knowledge assistant. Use exclusively the following pieces of context to answer the user's question. If the answer cannot be found in the context, say exactly: 'I was unable to generate a response. Please try again.' Do not make up answers.
 
 CONTEXT: {context}
 

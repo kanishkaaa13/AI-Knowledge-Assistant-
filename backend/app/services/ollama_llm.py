@@ -67,13 +67,14 @@ class OllamaLLMService:
         data = response.json()
         return data.get("message", {}).get("content", "").strip()
 
-    async def stream_generate(self, *, prompt: str, model: str) -> AsyncIterator[str]:
-        selected_model = self._validate_model(model)
+    async def stream_generate(self, *, system_prompt: str, user_message: str, model: str | None = None) -> AsyncIterator[str]:
+        selected_model = self._validate_model(model or "deepseek-r1:7b")
+        url = f"{self.base_url}/api/chat"
         payload = {
             "model": selected_model,
             "messages": [
-                {"role": "system", "content": "You are a helpful AI assistant."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
             ],
             "stream": True,
             "options": {
@@ -82,30 +83,35 @@ class OllamaLLMService:
             }
         }
 
-        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
-            async with client.stream(
-                "POST",
-                f"{self.base_url}/api/chat",
-                json=payload,
-            ) as response:
-                if response.status_code == 404:
-                    raise HTTPException(
-                        status_code=404,
-                        detail="Model deepseek-r1:7b not found. Run: ollama pull deepseek-r1:7b"
-                    )
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if not line:
-                        continue
-                    data = json.loads(line)
-                    print(f"[OLLAMA RAW CHUNK]: {data}")
-                    try:
-                        token = data.get("message", {}).get("content", "")
-                        if token:
-                            print(f"[OLLAMA] Token: {token!r}")
-                            yield token
-                    except (KeyError, TypeError) as e:
-                        print(f"[OLLAMA] Chunk parse error: {e}, raw chunk: {data!r}")
-                        continue
-                    if data.get("done"):
-                        break
+        print(f"[OLLAMA] POST {url} model={selected_model}")
+
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
+                async with client.stream("POST", url, json=payload) as response:
+                    if response.status_code != 200:
+                        error_text = await response.aread()
+                        raise RuntimeError(f"Ollama returned {response.status_code}: {error_text.decode()}")
+
+                    async for line in response.aiter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            chunk = json.loads(line)
+                            token = chunk.get("message", {}).get("content", "")
+                            done = chunk.get("done", False)
+
+                            if token:
+                                print(f"[OLLAMA TOKEN]: {token!r}")
+                                yield token
+
+                            if done:
+                                print("[OLLAMA] Stream complete")
+                                break
+
+                        except json.JSONDecodeError as e:
+                            print(f"[OLLAMA] JSON parse error: {e}, line: {line!r}")
+                            continue
+        except httpx.ConnectError:
+            raise RuntimeError("Cannot connect to Ollama. Make sure it is running: ollama serve")
+        except httpx.TimeoutException:
+            raise RuntimeError("Ollama request timed out. DeepSeek may be loading, try again.")

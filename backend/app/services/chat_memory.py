@@ -194,6 +194,7 @@ class ChatMemoryService:
         message_count = self.conversations.get_message_count(conversation.id)
         return ConversationListItem(
             id=str(conversation.id),
+            user_id=str(conversation.user_id),
             title=conversation.title,
             summary=conversation.summary,
             created_at=conversation.created_at.isoformat(),
