@@ -45,47 +45,35 @@ export function ChatMessageBubble({
   }
 
   return (
-    <article className={cn("flex w-full gap-4", isUser ? "justify-end" : "justify-start")}>
+    <article className={cn("flex w-full gap-3", isUser ? "justify-end" : "justify-start")}>
       {!isUser && (
-        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/40 bg-[#1e1e1e] text-indigo-400">
-          <Bot className="h-5 w-5" />
+        <div className="mt-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1a1a1a] border border-[#2a2a2a] text-sm">
+          🤖
         </div>
       )}
 
-      <div
-        className={cn(
-          "group relative rounded-2xl px-5 py-4 shadow-sm",
-          isUser
-            ? "max-w-[70%] bg-indigo-600 text-white"
-            : "max-w-[75%] border border-border/40 bg-[#1e1e1e]"
-        )}
-      >
-        <div className="mb-2 flex items-center gap-2 text-xs font-semibold tracking-wider text-white/70 uppercase">
-          {isUser ? userName : "Assistant"}
+      <div className={cn("flex flex-col", isUser ? "items-end max-w-[68%]" : "items-start max-w-[72%]")}>
+        <div
+          className={cn(
+            "group relative px-5 py-3 shadow-sm",
+            isUser
+              ? "bg-[#6366f1] text-white rounded-[18px_18px_4px_18px]"
+              : "bg-[#1a1a1a] border border-[#2a2a2a] rounded-[18px_18px_18px_4px]"
+          )}
+        >
+          <ChatMarkdown content={message.content} invert={isUser} isStreaming={message.isStreaming} />
         </div>
-
-        <ChatMarkdown content={message.content} invert={isUser} isStreaming={message.isStreaming} />
-
-        <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-          <span className={cn(isUser ? "text-indigo-200" : "text-muted-foreground")}>{message.createdAt}</span>
-          <Button
-            className={cn(
-              "h-7 rounded-lg px-3 opacity-0 transition group-hover:opacity-100",
-              isUser ? "bg-black/20 text-white hover:bg-black/30" : "bg-[#2a2a2a] text-muted-foreground hover:text-white"
-            )}
-            size="sm"
-            variant="ghost"
-            onClick={() => void copyMessage()}
-          >
-            {message.isStreaming ? <Check className="mr-1.5 h-3 w-3" /> : <Copy className="mr-1.5 h-3 w-3" />}
-            {message.isStreaming ? "Streaming" : "Copy"}
-          </Button>
+        <div className={cn("mt-1.5 flex items-center gap-2 px-1", isUser ? "flex-row-reverse" : "flex-row")}>
+          <span className="text-[11px] font-medium text-[#4b5563]">{message.createdAt}</span>
+          <button onClick={() => void copyMessage()} className="text-[10px] text-[#4b5563] hover:text-[#6b7280]">
+             {message.isStreaming ? "Streaming" : "Copy"}
+          </button>
         </div>
       </div>
 
       {isUser && (
-        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600/20 text-indigo-500 border border-indigo-500/20">
-          <User2 className="h-5 w-5" />
+        <div className="mt-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 text-xs font-semibold uppercase">
+          {userName.charAt(0) || "U"}
         </div>
       )}
     </article>

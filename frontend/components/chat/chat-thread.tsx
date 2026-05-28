@@ -10,11 +10,13 @@ import { ChatSkeleton } from "@/components/chat/chat-skeleton";
 export function ChatThread({
   isLoading,
   messages,
-  userName
+  userName,
+  onUsePrompt
 }: {
   isLoading?: boolean;
   messages: ChatMessage[];
   userName: string;
+  onUsePrompt?: (prompt: string) => void;
 }) {
   const scrollRef = useAutoScroll<HTMLDivElement>(messages);
   const hasStreamingMessage = messages.some((message) => message.isStreaming);
@@ -30,7 +32,7 @@ export function ChatThread({
   }
 
   if (messages.length === 0) {
-    return <ChatEmptyState />;
+    return <ChatEmptyState onUsePrompt={onUsePrompt} />;
   }
 
   return (

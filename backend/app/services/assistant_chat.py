@@ -38,33 +38,39 @@ class AssistantChatService:
         top_k: int = 4,
         document_ids: list[str] | None = None,
     ) -> dict:
-        # Retrieve context from ChromaDB
-        try:
-            search_results = await self.vector_store.similarity_search(
-                user_id=user.id,
-                query=query,
-                top_k=top_k,
-                document_ids=document_ids,
-            )
-        except Exception:
-            logger.exception("ChromaDB retrieval failed — falling back to empty context.")
+        if document_ids is not None and len(document_ids) == 0:
             search_results = []
+            chunks = []
+            context = ""
+            prompt = query
+        else:
+            # Retrieve context from ChromaDB
+            try:
+                search_results = await self.vector_store.similarity_search(
+                    user_id=user.id,
+                    query=query,
+                    top_k=top_k,
+                    document_ids=document_ids,
+                )
+            except Exception:
+                logger.exception("ChromaDB retrieval failed — falling back to empty context.")
+                search_results = []
 
-        chunks = _format_chunks(search_results)
+            chunks = _format_chunks(search_results)
 
-        if not search_results:
-            answer = "I cannot find that information in your uploaded documents."
-            return {
-                "query": query,
-                "answer": answer,
-                "context": "",
-                "chunks": chunks,
-                "prompt": "",
-                "model": model,
-            }
+            if not search_results:
+                answer = "I cannot find that information in your uploaded documents."
+                return {
+                    "query": query,
+                    "answer": answer,
+                    "context": "",
+                    "chunks": chunks,
+                    "prompt": "",
+                    "model": model,
+                }
 
-        context = "\n\n".join([r.document for r in search_results])
-        prompt = build_rag_prompt(query=query, context=context)
+            context = "\n\n".join([r.document for r in search_results])
+            prompt = build_rag_prompt(query=query, context=context)
 
         try:
             answer = await self.ollama_service.generate(prompt=prompt, model=model)
@@ -96,19 +102,26 @@ class AssistantChatService:
         document_ids: list[str] | None = None,
     ) -> AsyncIterator[str]:
         # Retrieve context
-        try:
-            search_results = await self.vector_store.similarity_search(
-                user_id=user.id,
-                query=query,
-                top_k=top_k,
-                document_ids=document_ids,
-            )
-        except Exception:
-            logger.exception("ChromaDB retrieval failed during streaming.")
+        is_general_knowledge = document_ids is not None and len(document_ids) == 0
+        
+        if is_general_knowledge:
             search_results = []
+            context = ""
+            chunks = []
+        else:
+            try:
+                search_results = await self.vector_store.similarity_search(
+                    user_id=user.id,
+                    query=query,
+                    top_k=top_k,
+                    document_ids=document_ids,
+                )
+            except Exception:
+                logger.exception("ChromaDB retrieval failed during streaming.")
+                search_results = []
 
-        context = "\n\n".join([r.document for r in search_results])
-        chunks = _format_chunks(search_results)
+            context = "\n\n".join([r.document for r in search_results])
+            chunks = _format_chunks(search_results)
 
         # Always send context metadata first so the client knows what sources were used
         meta_payload = {
@@ -119,13 +132,13 @@ class AssistantChatService:
         }
         yield f"data: {json.dumps(meta_payload)}\n\n"
 
-        if not search_results:
+        if not is_general_knowledge and not search_results:
             no_doc_msg = "I cannot find that information in your uploaded documents."
             yield f"data: {json.dumps({'type': 'token', 'content': no_doc_msg})}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'answer': no_doc_msg, 'prompt': ''})}\n\n"
             return
 
-        prompt = build_rag_prompt(query=query, context=context)
+        prompt = query if is_general_knowledge else build_rag_prompt(query=query, context=context)
         full_answer = ""
 
         # Check Ollama availability

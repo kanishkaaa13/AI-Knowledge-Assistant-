@@ -384,7 +384,8 @@ export function useChat() {
     };
 
     try {
-      const effectiveDocumentIds = selectedDocumentIds.length > 0 ? selectedDocumentIds : allDocs.map(d => d.id);
+      // When no documents are selected, send [] to let backend answer from general knowledge
+      const effectiveDocumentIds = selectedDocumentIds;
       if (settings.streamResponses) {
         await streamAssistantChat(
           {

@@ -6,10 +6,13 @@ import {
   Download,
   Edit3,
   Heart,
+  LogOut,
+  MessageSquare,
   MoreHorizontal,
   Plus,
   Search,
   Settings,
+  Sparkles,
   Trash2
 } from "lucide-react";
 
@@ -165,7 +168,7 @@ export function ChatSidebar({
   } | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
   const [isMounted, setIsMounted] = React.useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   React.useEffect(() => {
     setIsMounted(true);
@@ -208,6 +211,11 @@ export function ChatSidebar({
       <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-border/40 bg-[#0f0f0f]">
         {/* Header — fixed height */}
         <div className="flex-shrink-0 space-y-4 p-5">
+          <div className="flex items-center gap-2 px-1 mb-2">
+            <Sparkles className="h-5 w-5 text-indigo-500" />
+            <span className="text-base font-semibold text-white tracking-wide">AI Assistant</span>
+          </div>
+
           <Button
             className="w-full justify-start gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:opacity-90 border-0"
             onClick={onCreateConversation}
@@ -239,10 +247,13 @@ export function ChatSidebar({
               ))}
             </div>
           ) : !hasConversations ? (
-            <div className="rounded-xl border border-dashed border-border/40 bg-[#1a1a1a]/50 p-5 text-sm text-muted-foreground">
-              {isMounted ? (historySearch
-                ? `No conversations match "${historySearch}".`
-                : "No saved conversations yet. Start a new grounded chat and it will appear here.") : null}
+            <div className="flex h-full flex-col items-center justify-center space-y-3 p-4 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1a1a1a]">
+                <MessageSquare className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {isMounted ? (historySearch ? `No results for "${historySearch}"` : "No conversations yet") : null}
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -290,11 +301,16 @@ export function ChatSidebar({
                 </span>
               </div>
             </div>
-            {onOpenSettings && (
-              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-[#1a1a1a]" onClick={onOpenSettings}>
-                <Settings className="h-4 w-4 text-muted-foreground" />
+            <div className="flex gap-1 shrink-0">
+              {onOpenSettings && (
+                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-[#1a1a1a]" onClick={onOpenSettings}>
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              )}
+              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-[#1a1a1a] hover:text-destructive text-muted-foreground" onClick={logout}>
+                <LogOut className="h-4 w-4" />
               </Button>
-            )}
+            </div>
           </div>
         </div>
       </aside>

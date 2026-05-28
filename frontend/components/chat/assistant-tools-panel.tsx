@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { BookOpenText, Download, FileText, Lightbulb, SearchCode, Sparkles, Trash2, Cpu, CheckSquare, Square } from "lucide-react";
+import { BookOpenText, Download, FileText, Lightbulb, SearchCode, Sparkles, Trash2, Cpu, CheckSquare, Square, UploadCloud } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { AssistantQuizItem, SemanticDocumentSearchItem } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDocuments, useDeleteDocument } from "@/hooks/use-documents";
+import { useDocuments, useDeleteDocument, useUploadDocument } from "@/hooks/use-documents";
 
 function formatBytes(bytes: number | null) {
   if (!bytes) return "Unknown size";
@@ -48,6 +48,53 @@ export function AssistantToolsPanel({
   const { data: allDocsResponse } = useDocuments();
   const allDocs = allDocsResponse?.items ?? [];
   const deleteMutation = useDeleteDocument();
+  const uploadMutation = useUploadDocument();
+  
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      await handleUpload(file);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      await handleUpload(file);
+    }
+  };
+
+  const handleUpload = async (file: File) => {
+    try {
+      await uploadMutation.mutateAsync({
+        file,
+        title: file.name,
+        onProgress: (progress) => setUploadProgress(Math.round(progress))
+      });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setUploadProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
   
   const toggleDocument = React.useCallback((id: string) => {
     if (selectedDocumentIds.includes(id)) {
@@ -142,44 +189,97 @@ export function AssistantToolsPanel({
             </div>
           </TabsContent>
 
-          <TabsContent value="documents" className="m-0 space-y-4">
+          <TabsContent value="documents" className="m-0 flex flex-col space-y-4">
+            {/* Upload Zone */}
+            <div
+              className={cn(
+                "relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors",
+                isDragging ? "border-indigo-500 bg-indigo-500/10" : "border-border/40 hover:bg-[#1a1a1a]"
+              )}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => void handleFileChange(e)} />
+              
+              {uploadMutation.isPending ? (
+                <div className="flex flex-col items-center gap-2 text-indigo-400">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <span className="text-xs font-medium">Uploading {uploadProgress}%</span>
+                </div>
+              ) : (
+                <>
+                  <UploadCloud className="mb-2 h-6 w-6 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Drop files here or click to upload</span>
+                </>
+              )}
+            </div>
+
+            {/* Header with Select All */}
             <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold text-white">Selected Documents</div>
-              <span className="rounded-lg bg-indigo-600/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
-                {selectedDocs.length}
+              <div className="flex items-center gap-2 cursor-pointer" onClick={toggleAll}>
+                {selectedDocumentIds.length === allDocs.length && allDocs.length > 0 ? (
+                  <CheckSquare className="h-4 w-4 text-indigo-400 shrink-0" />
+                ) : (
+                  <Square className="h-4 w-4 text-muted-foreground shrink-0" />
+                )}
+                <span className="text-xs font-medium text-white">Select All</span>
+              </div>
+              <span className="rounded-lg bg-indigo-600/20 px-2 py-0.5 text-xs font-medium text-indigo-400 shrink-0">
+                {selectedDocumentIds.length} / {allDocs.length}
               </span>
             </div>
             
-            {selectedDocs.length > 0 ? (
-              <div className="space-y-2">
-                {selectedDocs.map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between rounded-xl border border-border/40 bg-[#1a1a1a] p-3 transition-colors hover:bg-[#2a2a2a]">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
-                        <FileText className="h-4 w-4" />
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="truncate text-sm font-medium text-white">{doc.title}</span>
-                        <span className="text-xs text-muted-foreground">{formatBytes(doc.file_size)}</span>
-                      </div>
-                    </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void deleteMutation.mutateAsync(doc.id);
-                      }}
+            {allDocs.length > 0 ? (
+              <div className="space-y-2 flex-1 overflow-y-auto">
+                {allDocs.map((doc) => {
+                  const ext = doc.filename.split('.').pop()?.toLowerCase();
+                  return (
+                    <div 
+                      key={doc.id} 
+                      className="flex items-center gap-3 rounded-xl border border-border/40 bg-[#1a1a1a] p-3 transition-colors hover:bg-[#2a2a2a] cursor-pointer"
+                      onClick={() => toggleDocument(doc.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                      <div className="shrink-0">
+                        {selectedDocumentIds.includes(doc.id) ? (
+                          <CheckSquare className="h-4 w-4 text-indigo-400" />
+                        ) : (
+                          <Square className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <div className={cn(
+                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10",
+                          ext === 'pdf' ? "text-red-400" : ext === 'doc' || ext === 'docx' ? "text-blue-400" : "text-indigo-400"
+                        )}>
+                          <FileText className="h-4 w-4" />
+                        </div>
+                        <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+                          <span className="truncate text-sm font-medium text-white" title={doc.title}>{doc.title}</span>
+                          <span className="text-xs text-muted-foreground">{formatBytes(doc.file_size)}</span>
+                        </div>
+                      </div>
+                      
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void deleteMutation.mutateAsync(doc.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-border/40 p-6 text-center text-sm text-muted-foreground">
-                No documents selected. Use the document manager to select files for your conversation.
+                No documents uploaded yet.
               </div>
             )}
           </TabsContent>

@@ -102,7 +102,7 @@ export function ChatShell({
   const [isToolsOpen, setIsToolsOpen] = React.useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0a0a0a]">
+    <div className="flex h-screen overflow-hidden bg-[#080808]">
       <div className="hidden xl:flex xl:flex-shrink-0 h-full">
         <ChatSidebar
           activeConversationId={activeConversationId}
@@ -120,8 +120,8 @@ export function ChatShell({
         />
       </div>
 
-      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="sticky top-0 z-20 border-b border-border/40 bg-[#0a0a0a]/80 backdrop-blur-xl">
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-[#0c0c0c]">
+        <header className="sticky top-0 z-20 border-b border-[#1f1f1f] bg-[#080808]/80 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3">
               <Button
@@ -156,8 +156,9 @@ export function ChatShell({
               isLoading={isConversationLoading}
               messages={messages}
               userName={user?.name ?? "You"}
+              onUsePrompt={onUseSuggestedPrompt}
             />
-            <div className="border-t border-border/40 bg-[#0a0a0a]/90 px-4 py-4 backdrop-blur-xl sm:px-6">
+            <div className="border-t border-[#1f1f1f] bg-[#111111] p-4">
               <ChatInput
                 input={input}
                 onInputChange={onInputChange}
