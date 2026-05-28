@@ -118,7 +118,8 @@ export function useChat() {
   const [quiz, setQuiz] = React.useState<AssistantQuizItem[]>([]);
   const [searchResults, setSearchResults] = React.useState<SemanticDocumentSearchItem[]>([]);
   const debouncedSearch = useDebouncedValue(historySearch, 250);
-  const { data: allDocs = [] } = useDocuments();
+  const { data: allDocsResponse } = useDocuments();
+  const allDocs = allDocsResponse?.items ?? [];
 
   const conversationsQuery = useQuery({
     queryKey: ["conversations"],

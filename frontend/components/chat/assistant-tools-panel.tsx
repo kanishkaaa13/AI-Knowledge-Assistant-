@@ -45,7 +45,8 @@ export function AssistantToolsPanel({
   onSelectedDocumentIdsChange: (ids: string[]) => void;
   className?: string;
 }) {
-  const { data: allDocs = [] } = useDocuments();
+  const { data: allDocsResponse } = useDocuments();
+  const allDocs = allDocsResponse?.items ?? [];
   const deleteMutation = useDeleteDocument();
   
   const toggleDocument = React.useCallback((id: string) => {

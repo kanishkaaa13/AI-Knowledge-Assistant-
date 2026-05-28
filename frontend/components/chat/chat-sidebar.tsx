@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -144,7 +143,8 @@ export function ChatSidebar({
   onFavoriteConversation,
   onHistorySearchChange,
   onRenameConversation,
-  onSelectConversation
+  onSelectConversation,
+  onOpenSettings
 }: {
   activeConversationId?: string;
   groupedConversations: ConversationGroup[];
@@ -280,11 +280,9 @@ export function ChatSidebar({
         <div className="flex-shrink-0 border-t border-border/40 p-4 bg-[#0f0f0f]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Avatar className="h-9 w-9 rounded-lg border border-border/40">
-                <AvatarFallback className="rounded-lg bg-indigo-600/20 text-indigo-500">
-                  {user?.name?.charAt(0).toUpperCase() ?? "U"}
-                </AvatarFallback>
-              </Avatar>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/40 bg-indigo-600/20 text-indigo-500 font-medium shrink-0">
+                {user?.name?.charAt(0).toUpperCase() ?? "U"}
+              </div>
               <div className="flex flex-col">
                 <span className="text-sm font-medium leading-none">{user?.name ?? "User"}</span>
                 <span className="text-xs text-muted-foreground mt-1 truncate max-w-[140px]">
