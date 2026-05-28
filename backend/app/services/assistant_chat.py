@@ -103,14 +103,34 @@ class AssistantChatService:
         top_k: int = 4,
         document_ids: list[str] | None = None,
     ) -> AsyncIterator[str]:
-        # Retrieve context
-        is_general_knowledge = document_ids is not None and len(document_ids) == 0
+        print(f"[STREAM] query={query!r}")
+        print(f"[STREAM] document_ids={document_ids!r}")
+        print(f"[STREAM] model={model!r}")
         
-        if is_general_knowledge:
-            search_results = []
-            context = ""
-            chunks = []
-        else:
+        # When no documents are selected, use direct chat fallback
+        if document_ids is not None and len(document_ids) == 0:
+            prompt = f"You are a helpful AI assistant.\n\nUser: {query}\nAssistant:"
+            print(f"[STREAM] Calling LLM with prompt length: {len(prompt)} chars")
+            print(f"[STREAM] Prompt preview: {prompt[:300]!r}")
+            import asyncio
+            
+            # Yield empty context because frontend expects it first
+            yield f"data: {json.dumps({'type': 'context', 'context': '', 'chunks': [], 'model': model})}\n\n"
+            
+            full_answer = ""
+            try:
+                async for token in self.ollama_service.stream_generate(prompt=prompt, model=model):
+                    print(f"[STREAM] Got chunk: {token!r}")
+                    full_answer += token
+                    yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+            except Exception:
+                logger.exception("Direct LLM fallback stream failed.")
+                pass
+            
+            yield f"data: {json.dumps({'type': 'done', 'answer': full_answer.strip(), 'prompt': prompt})}\n\n"
+            return
+
+        # Retrieve context
             try:
                 search_results = await self.vector_store.similarity_search(
                     user_id=user.id,
@@ -134,21 +154,24 @@ class AssistantChatService:
         }
         yield f"data: {json.dumps(meta_payload)}\n\n"
 
-        if not is_general_knowledge and not search_results:
+        if not search_results:
             no_doc_msg = "I cannot find that information in your uploaded documents."
             yield f"data: {json.dumps({'type': 'token', 'content': no_doc_msg})}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'answer': no_doc_msg, 'prompt': ''})}\n\n"
             return
 
-        prompt = query if is_general_knowledge else build_rag_prompt(query=query, context=context)
+        prompt = build_rag_prompt(query=query, context=context)
+        print(f"[STREAM] Calling LLM with prompt length: {len(prompt)} chars")
+        print(f"[STREAM] Prompt preview: {prompt[:300]!r}")
         full_answer = ""
 
         # Stream tokens
         import asyncio
         try:
             async for token in self.ollama_service.stream_generate(prompt=prompt, model=model):
+                print(f"[STREAM] Got chunk: {token!r}")
                 full_answer += token
-                yield f"data: {{json.dumps({{'type': 'token', 'content': token}})}}\n\n"
+                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
         except (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectError, asyncio.TimeoutError, GeneratorExit):
             logger.exception("Ollama connection lost mid-stream.")
             fallback = "Connection to Ollama lost. Please ensure Ollama is running with: ollama serve"
@@ -163,5 +186,5 @@ class AssistantChatService:
             yield f"data: {{json.dumps({{'type': 'error', 'message': fallback}})}}\n\n"
             return
 
-        final_answer = full_answer.strip() or "I cannot find that information in your uploaded documents."
+        final_answer = full_answer.strip() or "I was unable to generate a response. Please try again."
         yield f"data: {json.dumps({'type': 'done', 'answer': final_answer, 'prompt': prompt})}\n\n"

@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 
 from app.core.config import settings
 
-SUPPORTED_OLLAMA_MODELS = {"llama3", "mistral", "deepseek-r1:7b"}
+SUPPORTED_OLLAMA_MODELS = {"deepseek-r1:7b"}
 
 
 class OllamaLLMService:
@@ -33,14 +33,20 @@ class OllamaLLMService:
         selected_model = self._validate_model(model)
         payload = {
             "model": selected_model,
-            "prompt": prompt,
+            "messages": [
+                {"role": "system", "content": "You are a helpful AI assistant."},
+                {"role": "user", "content": prompt}
+            ],
             "stream": False,
-            "keep_alive": self.keep_alive,
+            "options": {
+                "temperature": 0.7,
+                "num_predict": 2048
+            }
         }
 
         async with httpx.AsyncClient(timeout=120.0) as client:
             try:
-                response = await client.post(f"{self.base_url}/api/generate", json=payload)
+                response = await client.post(f"{self.base_url}/api/chat", json=payload)
                 if response.status_code == 404:
                     raise HTTPException(
                         status_code=404,
@@ -59,21 +65,27 @@ class OllamaLLMService:
                 ) from exc
 
         data = response.json()
-        return data.get("response", "").strip()
+        return data.get("message", {}).get("content", "").strip()
 
     async def stream_generate(self, *, prompt: str, model: str) -> AsyncIterator[str]:
         selected_model = self._validate_model(model)
         payload = {
             "model": selected_model,
-            "prompt": prompt,
+            "messages": [
+                {"role": "system", "content": "You are a helpful AI assistant."},
+                {"role": "user", "content": prompt}
+            ],
             "stream": True,
-            "keep_alive": self.keep_alive,
+            "options": {
+                "temperature": 0.7,
+                "num_predict": 2048
+            }
         }
 
         async with httpx.AsyncClient(timeout=120.0) as client:
             async with client.stream(
                 "POST",
-                f"{self.base_url}/api/generate",
+                f"{self.base_url}/api/chat",
                 json=payload,
             ) as response:
                 if response.status_code == 404:
@@ -86,8 +98,13 @@ class OllamaLLMService:
                     if not line:
                         continue
                     data = json.loads(line)
-                    token = data.get("response", "")
-                    if token:
-                        yield token
+                    try:
+                        token = data.get("message", {}).get("content", "")
+                        if token:
+                            print(f"[OLLAMA] Token: {token!r}")
+                            yield token
+                    except (KeyError, TypeError) as e:
+                        print(f"[OLLAMA] Chunk parse error: {e}, raw chunk: {data!r}")
+                        continue
                     if data.get("done"):
                         break

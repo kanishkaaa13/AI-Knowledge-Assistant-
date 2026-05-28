@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     RAG_CHUNK_OVERLAP: int = 50
     RAG_TOP_K: int = 4
     LLM_PROVIDER: str = "ollama"
+    # Supported: "deepseek-r1:7b" (others can be added in LLM service mapping)
     LLM_MODEL_NAME: str = "deepseek-r1:7b"
     LLM_API_KEY: str | None = None
     LLM_BASE_URL: str | None = None

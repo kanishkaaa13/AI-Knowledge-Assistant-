@@ -160,16 +160,26 @@ class RAGRetrievalService:
             {uuid.UUID(item) for item in normalized_ids} if normalized_ids else set()
         )
 
+        print(f"[RAG] document_ids received: {normalized_ids!r}")
+        print(f"[RAG] user_id: {user.id!r}")
+        print(f"[RAG] Running similarity search...")
+
         # Both hybrid and semantic now use the same async similarity_search
         results: list[VectorSearchResult]
         if hybrid:
             results = await self.vector_store.hybrid_similarity_search(
-                user_id=user.id, query=query, top_k=max(k, 6)
+                user_id=user.id, query=query, top_k=max(k, 6), document_ids=normalized_ids
             )
         else:
             results = await self.vector_store.semantic_similarity_search(
-                user_id=user.id, query=query, top_k=max(k, 6)
+                user_id=user.id, query=query, top_k=max(k, 6), document_ids=normalized_ids
             )
+
+        print(f"[RAG] Results count: {len(results)}")
+        if results:
+            print(f"[RAG] First result preview: {str(results[0])[:200]}")
+        else:
+            print(f"[RAG] NO RESULTS FOUND")
 
         retrieved_chunks: list[RetrievedChunk] = []
         context_sections: list[str] = []
