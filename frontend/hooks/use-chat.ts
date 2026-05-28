@@ -234,6 +234,7 @@ export function useChat() {
   }, []);
 
   const exportCurrentConversation = React.useCallback(async (conversationId: string) => {
+    if (conversationId.startsWith("temp-")) return;
     const content = await exportConversation(conversationId);
     const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -250,6 +251,7 @@ export function useChat() {
 
   const renameStoredConversation = React.useCallback(
     async (conversationId: string, title: string) => {
+      if (conversationId.startsWith("temp-")) return;
       await renameMutation.mutateAsync({ conversationId, title });
     },
     [renameMutation]
@@ -257,6 +259,10 @@ export function useChat() {
 
   const removeConversation = React.useCallback(
     async (conversationId: string) => {
+      if (conversationId.startsWith("temp-")) {
+        setActiveConversationId(undefined);
+        return;
+      }
       await deleteMutation.mutateAsync(conversationId);
     },
     [deleteMutation]
@@ -264,6 +270,7 @@ export function useChat() {
 
   const markFavoriteConversation = React.useCallback(
     async (conversationId: string, favorite: boolean) => {
+      if (conversationId.startsWith("temp-")) return;
       await favoriteMutation.mutateAsync({ conversationId, favorite });
     },
     [favoriteMutation]
