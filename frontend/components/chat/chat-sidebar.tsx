@@ -212,125 +212,195 @@ export function ChatSidebar({
     setRenameValue("");
   }
 
+  const flattenedConversations = filteredGroups.flatMap(g => g.conversations);
+
   return (
     <>
-      {/* Sidebar — h-full fills the flex parent (h-screen on chat-shell root) */}
-      <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-border/40 bg-[var(--bg-secondary)]">
-        {/* Header — fixed height */}
-        <div className="flex-shrink-0 space-y-4 p-5">
-          <div className="flex items-center gap-2 px-1 mb-2">
-            <Sparkles className="h-5 w-5 text-indigo-500" />
-            <span className="text-base font-semibold text-white tracking-wide">AI Assistant</span>
+      <aside style={{
+        width: '240px',
+        minWidth: '240px',
+        height: '100vh',
+        background: '#0d0d0d',
+        borderRight: '1px solid #1e1e1e',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}>
+        
+        {/* ── Header ── */}
+        <div style={{
+          padding: '20px 16px 12px',
+          borderBottom: '1px solid #1a1a1a',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+            <span style={{ fontSize: '20px' }}>✦</span>
+            <span style={{ fontSize: '15px', fontWeight: 600, color: '#f1f1f1', letterSpacing: '-0.2px' }}>
+              AI Assistant
+            </span>
           </div>
-
-          <Button
-            className="w-full justify-start gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:opacity-90 border-0"
+          
+          {/* New Chat button */}
+          <button
             onClick={onCreateConversation}
+            style={{
+              width: '100%',
+              padding: '9px 14px',
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              border: 'none',
+              borderRadius: '10px',
+              color: '#fff',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              marginBottom: '10px',
+            }}
           >
-            <Plus className="h-4 w-4" />
+            <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span>
             New Chat
-          </Button>
+          </button>
 
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="rounded-2xl pl-9"
-              onChange={(e) => onHistorySearchChange(e.target.value)}
-              placeholder="Search conversations"
+          {/* Search */}
+          <div style={{ position: 'relative' }}>
+            <span style={{
+              position: 'absolute', left: '10px', top: '50%',
+              transform: 'translateY(-50%)', color: '#555', fontSize: '13px',
+            }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Search..."
               value={historySearch}
+              onChange={e => onHistorySearchChange(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 10px 8px 30px',
+                background: '#1a1a1a',
+                border: '1px solid #252525',
+                borderRadius: '8px',
+                color: '#d1d1d1',
+                fontSize: '12px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
             />
           </div>
         </div>
 
-        {/* Scrollable conversation list — takes all remaining height */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-20 animate-pulse rounded-xl bg-[var(--assistant-bubble)]"
-                />
-              ))}
-            </div>
-          ) : !hasConversations ? (
-            <div className="flex h-full flex-col items-center justify-center space-y-3 p-4 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--assistant-bubble)]">
-                <MessageSquare className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {isMounted ? (historySearch ? `No results for "${historySearch}"` : "No conversations yet") : null}
-              </p>
+        {/* ── Conversation List ── */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '8px 8px',
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#2a2a2a transparent',
+        }}>
+          {flattenedConversations.length === 0 ? (
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', height: '200px', gap: '10px',
+            }}>
+              <span style={{ fontSize: '28px', opacity: 0.3 }}>💬</span>
+              <span style={{ fontSize: '12px', color: '#444', textAlign: 'center' }}>
+                No conversations yet
+              </span>
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredGroups.map((group) => (
-                <div key={group.label}>
-                  <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {group.label}
-                  </p>
-                  <div className="space-y-2">
-                    {group.conversations.map((conversation) => (
-                      <ConversationItem
-                        key={conversation.id}
-                        active={conversation.id === activeConversationId}
-                        conversation={conversation}
-                        onDelete={() => void onDeleteConversation(conversation.id)}
-                        onExport={() => void onExportConversation(conversation.id)}
-                        onFavorite={() =>
-                          void onFavoriteConversation(conversation.id, !conversation.isFavorite)
-                        }
-                        onRename={() => {
-                          setRenameTarget({ id: conversation.id, title: conversation.title });
-                          setRenameValue(conversation.title);
-                        }}
-                        onSelect={() => onSelectConversation(conversation.id)}
-                      />
-                    ))}
+            <>
+              <div style={{
+                fontSize: '10px', fontWeight: 600, color: '#444',
+                letterSpacing: '0.8px', padding: '4px 8px 6px', textTransform: 'uppercase',
+              }}>
+                Recent
+              </div>
+              {flattenedConversations.map(conv => (
+                <div
+                  key={conv.id}
+                  onClick={() => onSelectConversation(conv.id)}
+                  style={{
+                    padding: '9px 10px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    marginBottom: '2px',
+                    background: activeConversationId === conv.id ? '#1e1e2e' : 'transparent',
+                    borderLeft: activeConversationId === conv.id ? '2px solid #6366f1' : '2px solid transparent',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={e => {
+                    if (activeConversationId !== conv.id)
+                      (e.currentTarget as HTMLElement).style.background = '#161616'
+                  }}
+                  onMouseLeave={e => {
+                    if (activeConversationId !== conv.id)
+                      (e.currentTarget as HTMLElement).style.background = 'transparent'
+                  }}
+                >
+                  <div style={{
+                    fontSize: '12.5px', fontWeight: 500, color: '#d1d1d1',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    marginBottom: '3px',
+                  }}>
+                    {conv.title || 'New conversation'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#444' }}>
+                    {formatRelativeTime(conv.updatedAt)}
                   </div>
                 </div>
               ))}
-            </div>
+            </>
           )}
         </div>
 
-        {/* Footer — fixed height */}
-        <div className="flex-shrink-0 border-t border-border/40 p-4 bg-[var(--bg-secondary)]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/40 bg-indigo-600/20 text-indigo-500 font-medium shrink-0">
-                {user?.name?.charAt(0).toUpperCase() ?? "U"}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium leading-none">{user?.name ?? "User"}</span>
-                <span className="text-xs text-muted-foreground mt-1 truncate max-w-[140px]">
-                  {user?.email ?? ""}
-                </span>
-              </div>
+        {/* ── User Footer ── */}
+        <div style={{
+          padding: '12px 14px',
+          borderTop: '1px solid #1a1a1a',
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+        }}>
+          {/* Avatar */}
+          <div style={{
+            width: '30px', height: '30px', borderRadius: '50%',
+            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '12px', fontWeight: 700, color: '#fff', flexShrink: 0,
+          }}>
+            {(user?.name || user?.email || 'K')[0].toUpperCase()}
+          </div>
+          
+          {/* Name + email */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: '12px', fontWeight: 500, color: '#d1d1d1',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              {user?.name || 'User'}
             </div>
-            <div className="flex gap-1 shrink-0">
-              <Button 
-                size="icon" 
-                variant="ghost" 
-                className="h-8 w-8 rounded-lg hover:bg-[var(--assistant-bubble)]" 
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              >
-                {theme === 'dark' ? (
-                  <Sun className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <Moon className="h-4 w-4 text-muted-foreground" />
-                )}
-              </Button>
-              {onOpenSettings && (
-                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-[var(--assistant-bubble)]" onClick={onOpenSettings}>
-                  <Settings className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              )}
-              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-[var(--assistant-bubble)] hover:text-destructive text-[var(--text-secondary)]" onClick={logoutUser}>
-                <LogOut className="h-4 w-4" />
-              </Button>
+            <div style={{
+              fontSize: '10px', color: '#444',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              {user?.email || ''}
             </div>
           </div>
+
+          {/* Settings icon */}
+          <button
+            onClick={() => onOpenSettings?.()}
+            style={{
+              background: 'none', border: 'none', color: '#444',
+              cursor: 'pointer', fontSize: '14px', padding: '4px',
+              borderRadius: '6px', flexShrink: 0,
+            }}
+            title="Settings"
+          >
+            ⚙️
+          </button>
         </div>
       </aside>
 
