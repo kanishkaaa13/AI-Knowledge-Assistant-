@@ -44,7 +44,7 @@ class OllamaLLMService:
             }
         }
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
             try:
                 response = await client.post(f"{self.base_url}/api/chat", json=payload)
                 if response.status_code == 404:
@@ -82,7 +82,7 @@ class OllamaLLMService:
             }
         }
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
             async with client.stream(
                 "POST",
                 f"{self.base_url}/api/chat",
@@ -98,6 +98,7 @@ class OllamaLLMService:
                     if not line:
                         continue
                     data = json.loads(line)
+                    print(f"[OLLAMA RAW CHUNK]: {data}")
                     try:
                         token = data.get("message", {}).get("content", "")
                         if token:

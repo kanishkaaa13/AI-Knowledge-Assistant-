@@ -175,15 +175,15 @@ class AssistantChatService:
         except (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectError, asyncio.TimeoutError, GeneratorExit):
             logger.exception("Ollama connection lost mid-stream.")
             fallback = "Connection to Ollama lost. Please ensure Ollama is running with: ollama serve"
-            yield f"data: {{json.dumps({{'type': 'error', 'message': fallback, 'error': fallback}})}}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': fallback, 'error': fallback})}\n\n"
             return
         except HTTPException as exc:
-            yield f"data: {{json.dumps({{'type': 'error', 'message': exc.detail}})}}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': exc.detail})}\n\n"
             return
         except Exception:
             logger.exception("Ollama streaming failed.")
             fallback = "Lost connection to Ollama mid-stream. Please try again or restart the Ollama service."
-            yield f"data: {{json.dumps({{'type': 'error', 'message': fallback}})}}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': fallback})}\n\n"
             return
 
         final_answer = full_answer.strip() or "I was unable to generate a response. Please try again."

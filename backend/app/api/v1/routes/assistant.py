@@ -226,12 +226,11 @@ async def stream_assistant_chat(
 
         except Exception as e:
             import traceback
-            tb = traceback.format_exc()
-            print(f"[STREAM ERROR] {tb}")
-            logger.exception("Unhandled error in SSE event_stream for user %s.", current_user.id)
+            full_tb = traceback.format_exc()
+            print(f"[STREAM CRASH]\n{full_tb}")
             error_payload = json.dumps({
                 "type": "error",
-                "message": f"Stream error: {str(e)}"
+                "message": str(e) or "Stream failed. Check backend logs."
             })
             yield f"data: {error_payload}\n\n"
 
@@ -243,6 +242,18 @@ async def stream_assistant_chat(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.get("/chat/test-stream")
+async def test_stream():
+    import asyncio
+    import json
+    async def gen():
+        for word in ["Hello", " from", " DeepSeek", " stream", " test!"]:
+            yield f"data: {json.dumps({'type': 'token', 'content': word})}\n\n"
+            await asyncio.sleep(0.1)
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+    return StreamingResponse(gen(), media_type="text/event-stream")
 
 
 @router.post("/summaries", response_model=AssistantSummaryResponse)
