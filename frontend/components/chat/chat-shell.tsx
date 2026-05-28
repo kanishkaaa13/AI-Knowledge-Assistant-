@@ -120,8 +120,8 @@ export function ChatShell({
         />
       </div>
 
-      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-[#0c0c0c]">
-        <header className="sticky top-0 z-20 border-b border-[var(--border-color)] bg-[var(--bg-primary)]/80 backdrop-blur-xl">
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg-chat)]">
+        <header className="sticky top-0 z-20 border-b border-[var(--border-color)] bg-[var(--bg-primary)]/80 backdrop-blur-xl flex-shrink-0">
           <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3">
               <Button
@@ -151,14 +151,14 @@ export function ChatShell({
         </header>
 
         <main className="flex min-h-0 flex-1 overflow-hidden">
-          <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex min-w-0 flex-1 flex-col h-full">
             <ChatThread
               isLoading={isConversationLoading}
               messages={messages}
               userName={user?.name ?? "You"}
               onUsePrompt={onUseSuggestedPrompt}
             />
-            <div className="border-t border-[var(--border-color)] bg-[var(--bg-panel)] p-4">
+            <div className="border-t border-[var(--border-color)] bg-[var(--bg-panel)] p-4 flex-shrink-0 sticky bottom-0 min-h-[64px] max-h-[160px] overflow-hidden">
               <ChatInput
                 input={input}
                 onInputChange={onInputChange}

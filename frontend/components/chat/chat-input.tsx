@@ -75,17 +75,18 @@ export function ChatInput({
     <form className="mx-auto flex w-full max-w-4xl items-end gap-2" onSubmit={handleSubmit}>
       <Button
         type="button"
-        className="mb-[2px] h-10 w-10 shrink-0 rounded-[10px] border border-[var(--border-color)] bg-[var(--assistant-bubble)] text-[var(--text-secondary)] hover:bg-[var(--border-color)] hover:text-white"
+        className="mb-[2px] h-10 w-10 shrink-0 rounded-[10px] border border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:bg-[var(--border-color)] hover:text-[var(--text-primary)]"
         variant="ghost"
         title="Attach Document"
       >
         <Paperclip className="h-4 w-4" />
       </Button>
 
-      <div className="flex-1 rounded-[12px] border border-[var(--border-color)] bg-[var(--assistant-bubble)] overflow-hidden">
+      <div className="flex-1 rounded-[12px] border border-[var(--border-color)] bg-[var(--input-bg)] overflow-hidden">
         <Textarea
           id="chat-input"
-          className="max-h-[200px] min-h-[44px] w-full resize-none border-0 bg-transparent px-4 py-3 text-sm text-[var(--text-primary)] shadow-none focus-visible:ring-0 placeholder:text-[var(--text-secondary)]"
+          className="max-h-[120px] min-h-[44px] w-full resize-none border-0 bg-transparent px-4 py-3 text-sm text-[var(--text-primary)] shadow-none focus-visible:ring-0 placeholder:text-[var(--text-secondary)]"
+          style={{ resize: 'none', maxHeight: '120px', overflowY: 'auto' }}
           onChange={(event) => onInputChange(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
@@ -100,9 +101,9 @@ export function ChatInput({
       </div>
 
       <Button
-        className="mb-[2px] h-10 w-10 shrink-0 rounded-[10px] bg-[#6366f1] p-0 text-white hover:bg-[#4f46e5]"
-        disabled={!input.trim() || isSending}
         type="submit"
+        disabled={isSending || !input.trim()}
+        className="mb-[2px] h-10 w-10 shrink-0 rounded-[10px] bg-[var(--bg-message-user)] p-0 text-white hover:opacity-90"
       >
         {isSending ? (
           <Loader2 className="h-4 w-4 animate-spin" />

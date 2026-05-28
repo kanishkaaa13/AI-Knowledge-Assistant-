@@ -45,6 +45,10 @@ export function ChatMessageBubble({
     );
   }
 
+  if (!isUser && message.content.trim().length === 0) {
+    return null;
+  }
+
   return (
     <article className={cn("flex w-full gap-3", isUser ? "justify-end" : "justify-start")}>
       {!isUser && (
@@ -58,7 +62,7 @@ export function ChatMessageBubble({
           className={cn(
             "group relative px-5 py-3 shadow-sm",
             isUser
-              ? "bg-[#6366f1] text-white rounded-[18px_18px_4px_18px]"
+              ? "bg-[var(--bg-message-user)] text-white rounded-[18px_18px_4px_18px]"
               : "bg-[var(--assistant-bubble)] border border-[var(--border-color)] rounded-[18px_18px_18px_4px]"
           )}
         >
