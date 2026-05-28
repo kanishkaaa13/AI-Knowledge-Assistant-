@@ -77,8 +77,8 @@ class AssistantChatService:
         except Exception:
             logger.exception("Ollama generation failed.")
             answer = (
-                "DeepSeek model is not running. Please run: "
-                "ollama pull deepseek-r1:7b && ollama serve"
+                "The AI model is not running. Please run: "
+                f"ollama pull {settings.OLLAMA_DEFAULT_MODEL} && ollama serve"
             )
 
         return {
@@ -105,10 +105,10 @@ class AssistantChatService:
         print(f"[STREAM] document_ids={document_ids!r}")
         print(f"[STREAM] model={model!r}")
 
-        # ── PATH A: No documents selected — direct DeepSeek chat ──────────────
+        # ── PATH A: No documents selected — direct AI chat ──────────────
         if document_ids is not None and len(document_ids) == 0:
             prompt = (
-                "You are a helpful AI assistant powered by DeepSeek.\n\n"
+                "You are a helpful AI assistant.\n\n"
                 f"User: {query}\nAssistant:"
             )
             print(f"[STREAM] No docs selected — direct chat mode")
@@ -164,7 +164,7 @@ class AssistantChatService:
         else:
             # No context found — answer directly instead of returning error string
             prompt = (
-                "You are a helpful AI assistant powered by DeepSeek.\n"
+                "You are a helpful AI assistant.\n"
                 "The user selected documents but no relevant content was found.\n"
                 "Answer helpfully from general knowledge and mention the documents had no matches.\n\n"
                 f"User: {query}\nAssistant:"

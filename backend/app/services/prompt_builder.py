@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
 
 GROUNDED_RAG_PROMPT_TEMPLATE = ChatPromptTemplate.from_template(
-    """You are a helpful AI knowledge assistant powered by DeepSeek.
+    """You are a helpful AI knowledge assistant powered by local AI.
 
   Use the following document context to answer the user's question.
   Be specific and reference the document content in your answer.

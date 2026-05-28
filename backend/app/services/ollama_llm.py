@@ -9,8 +9,8 @@ from fastapi import HTTPException, status
 
 from app.core.config import settings
 
-DEFAULT_MODEL = getattr(settings, 'OLLAMA_DEFAULT_MODEL', 'deepseek-r1:7b')
-SUPPORTED_OLLAMA_MODELS = [DEFAULT_MODEL, "deepseek-r1:1.5b", "deepseek-r1:14b", "llama3", "mistral"]
+DEFAULT_MODEL = getattr(settings, 'OLLAMA_DEFAULT_MODEL', 'llama3.2:3b')
+SUPPORTED_OLLAMA_MODELS = [DEFAULT_MODEL, "deepseek-r1:1.5b", "deepseek-r1:14b", "llama3", "mistral", "llama3.2:3b"]
 
 
 class OllamaLLMService:
@@ -50,7 +50,7 @@ class OllamaLLMService:
                 if response.status_code == 404:
                     raise HTTPException(
                         status_code=404,
-                        detail="Model deepseek-r1:7b not found. Run: ollama pull deepseek-r1:7b"
+                        detail=f"Model {selected_model} not found. Run: ollama pull {selected_model}"
                     )
                 response.raise_for_status()
             except httpx.HTTPStatusError as exc:
@@ -68,7 +68,7 @@ class OllamaLLMService:
         return data.get("message", {}).get("content", "").strip()
 
     async def stream_generate(self, *, prompt: str, model: str | None = None) -> AsyncIterator[str]:
-        selected_model = self._validate_model(model or "deepseek-r1:7b")
+        selected_model = self._validate_model(model or settings.OLLAMA_DEFAULT_MODEL)
         url = f"{self.base_url}/api/chat"
         payload = {
             "model": selected_model,
@@ -114,4 +114,4 @@ class OllamaLLMService:
         except httpx.ConnectError:
             raise RuntimeError("Cannot connect to Ollama. Make sure it is running: ollama serve")
         except httpx.TimeoutException:
-            raise RuntimeError("Ollama request timed out. DeepSeek may be loading, try again.")
+            raise RuntimeError("Ollama request timed out. The AI model may be loading, try again.")

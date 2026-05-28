@@ -38,12 +38,12 @@ class Settings(BaseSettings):
     RAG_CHUNK_OVERLAP: int = 50
     RAG_TOP_K: int = 4
     LLM_PROVIDER: str = "ollama"
-    # Supported: "deepseek-r1:7b" (others can be added in LLM service mapping)
-    LLM_MODEL_NAME: str = "deepseek-r1:7b"
+    # Supported: "llama3.2:3b" (others can be added in LLM service mapping)
+    LLM_MODEL_NAME: str = "llama3.2:3b"
     LLM_API_KEY: str | None = None
     LLM_BASE_URL: str | None = None
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_DEFAULT_MODEL: str = "deepseek-r1:7b"
+    OLLAMA_DEFAULT_MODEL: str = "llama3.2:3b"
     OLLAMA_KEEP_ALIVE: str = "5m"
     ENFORCE_LOCAL_ONLY_AI: bool = True
     BACKEND_CORS_ORIGINS: list[str] = [

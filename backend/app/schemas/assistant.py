@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 
 from app.schemas.rag import RetrievedChunk
+from app.core.config import settings
 
 
 class SummaryStat(BaseModel):
@@ -54,7 +55,7 @@ class AnalyticsOverview(BaseModel):
 
 class AssistantSummaryRequest(BaseModel):
     query: str = Field(min_length=1)
-    model: str = "deepseek-r1:7b"
+    model: str = Field(default_factory=lambda: settings.OLLAMA_DEFAULT_MODEL)
     document_ids: list[str] = Field(default_factory=list)
 
 

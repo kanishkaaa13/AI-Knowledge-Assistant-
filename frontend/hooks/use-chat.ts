@@ -457,7 +457,7 @@ export function useChat() {
         await streamAssistantChat(
           {
             query: prompt,
-            model: "deepseek-r1:7b" as StreamPayload["model"],
+            model: "llama3.2:3b" as StreamPayload["model"],
             top_k: 4,
             hybrid: true,
             conversation_id: isNewConversation ? undefined : conversationId,
@@ -492,7 +492,7 @@ export function useChat() {
       } else {
         const response = await queryAssistant({
           query: prompt,
-          model: "deepseek-r1:7b",
+          model: "llama3.2:3b",
           top_k: 4,
           hybrid: true,
           conversation_id: isNewConversation ? undefined : conversationId,
