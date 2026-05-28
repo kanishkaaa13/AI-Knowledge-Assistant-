@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileUp, X } from "lucide-react";
+import { FileUp, X, Loader2 } from "lucide-react";
 
 import { Progress } from "@/components/ui/progress";
 import { useUploadDocument } from "@/hooks/use-documents";
@@ -12,7 +12,7 @@ type QueueItem = {
   id: string;
   file: File;
   progress: number;
-  status: "queued" | "uploading" | "done" | "error";
+  status: "queued" | "uploading" | "indexing" | "Ready" | "error";
 };
 
 function createQueueItem(file: File): QueueItem {
@@ -53,7 +53,7 @@ export function DropzoneUploader() {
             onProgress(progress) {
               setQueue((current) =>
                 current.map((entry) =>
-                  entry.id === item.id ? { ...entry, progress } : entry
+                  entry.id === item.id ? { ...entry, progress, status: progress === 100 ? "indexing" : entry.status } : entry
                 )
               );
             }
@@ -61,7 +61,7 @@ export function DropzoneUploader() {
 
           setQueue((current) =>
             current.map((entry) =>
-              entry.id === item.id ? { ...entry, status: "done", progress: 100 } : entry
+              entry.id === item.id ? { ...entry, status: "Ready", progress: 100 } : entry
             )
           );
         } catch {
@@ -135,7 +135,10 @@ export function DropzoneUploader() {
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{item.file.name}</p>
-                  <p className="text-xs text-muted-foreground">{item.status}</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                    {item.status === "indexing" && <Loader2 className="h-3 w-3 animate-spin" />}
+                    {item.status === "indexing" ? "Indexing..." : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                  </p>
                 </div>
                 <button
                   className="rounded-full p-1 text-muted-foreground transition hover:bg-secondary"

@@ -1,11 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { BookOpenText, Download, Lightbulb, SearchCode, Sparkles } from "lucide-react";
+import { BookOpenText, Download, FileText, Lightbulb, SearchCode, Sparkles, Trash2, Cpu, CheckSquare, Square } from "lucide-react";
 
 import type { AssistantQuizItem, SemanticDocumentSearchItem } from "@/types/api";
-
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDocuments, useDeleteDocument } from "@/hooks/use-documents";
+
+function formatBytes(bytes: number | null) {
+  if (!bytes) return "Unknown size";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export function AssistantToolsPanel({
   generatedSummary,
@@ -31,112 +39,224 @@ export function AssistantToolsPanel({
   onGenerateSummary: () => Promise<void>;
   onRunSemanticSearch: () => Promise<void>;
   onUsePrompt: (prompt: string) => void;
+  onSelectedDocumentIdsChange: (ids: string[]) => void;
 }) {
+  const { data: allDocs = [] } = useDocuments();
+  const deleteMutation = useDeleteDocument();
+  
+  const toggleDocument = React.useCallback((id: string) => {
+    if (selectedDocumentIds.includes(id)) {
+      onSelectedDocumentIdsChange(selectedDocumentIds.filter(docId => docId !== id));
+    } else {
+      onSelectedDocumentIdsChange([...selectedDocumentIds, id]);
+    }
+  }, [selectedDocumentIds, onSelectedDocumentIdsChange]);
+
+  const toggleAll = React.useCallback(() => {
+    if (selectedDocumentIds.length === allDocs.length) {
+      onSelectedDocumentIdsChange([]);
+    } else {
+      onSelectedDocumentIdsChange(allDocs.map(d => d.id));
+    }
+  }, [allDocs, selectedDocumentIds.length, onSelectedDocumentIdsChange]);
+  
+  const selectedDocs = React.useMemo(() => {
+    return allDocs.filter((doc) => selectedDocumentIds.includes(doc.id));
+  }, [allDocs, selectedDocumentIds]);
+
   return (
-    <aside className="hidden h-screen w-[340px] shrink-0 overflow-y-auto border-l border-border/60 bg-card/30 xl:flex xl:flex-col">
-      <div className="space-y-4 p-5">
-        <section className="rounded-3xl border border-border/60 bg-card/70 p-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Sparkles className="h-4 w-4 text-primary" />
-            Assistant tools
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {selectedDocumentIds.length > 0
-              ? `Using ${selectedDocumentIds.length} selected document${selectedDocumentIds.length > 1 ? "s" : ""}.`
-              : "No document filter selected. The assistant will search your full knowledge base."}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" disabled={isWorking} onClick={() => void onGenerateSummary()}>
-              Summarize
-            </Button>
-            <Button size="sm" variant="secondary" disabled={isWorking} onClick={() => void onGenerateQuiz()}>
-              Quiz
-            </Button>
-            <Button size="sm" variant="secondary" disabled={isWorking} onClick={() => void onRunSemanticSearch()}>
-              Search docs
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => void onExportConversation()}>
-              <Download className="mr-1 h-3.5 w-3.5" />
-              Export
-            </Button>
-          </div>
-        </section>
+    <aside className="hidden h-screen w-[340px] shrink-0 flex-col border-l border-border/40 bg-[#0f0f0f] xl:flex">
+      <Tabs defaultValue="tools" className="flex h-full flex-col">
+        <div className="flex-shrink-0 p-4 border-b border-border/40">
+          <TabsList className="grid w-full grid-cols-3 bg-[#1a1a1a]">
+            <TabsTrigger value="tools" className="rounded-lg data-[state=active]:bg-[#2a2a2a] data-[state=active]:text-white text-muted-foreground">Tools</TabsTrigger>
+            <TabsTrigger value="documents" className="rounded-lg data-[state=active]:bg-[#2a2a2a] data-[state=active]:text-white text-muted-foreground">Docs</TabsTrigger>
+            <TabsTrigger value="memory" className="rounded-lg data-[state=active]:bg-[#2a2a2a] data-[state=active]:text-white text-muted-foreground">Memory</TabsTrigger>
+          </TabsList>
+        </div>
 
-        <section className="rounded-3xl border border-border/60 bg-card/70 p-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Lightbulb className="h-4 w-4 text-primary" />
-            Suggested prompts
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {suggestedPrompts.length > 0 ? (
-              suggestedPrompts.map((prompt) => (
+        <div className="flex-1 overflow-y-auto p-4">
+          <TabsContent value="tools" className="m-0 space-y-4">
+            <div className="rounded-xl border border-border/40 bg-[#1a1a1a] p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <Sparkles className="h-4 w-4 text-indigo-500" />
+                Assistant Actions
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  Select documents to search:
+                </p>
                 <button
-                  key={prompt}
-                  className="rounded-full bg-secondary px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-secondary/80 hover:text-foreground"
-                  onClick={() => onUsePrompt(prompt)}
                   type="button"
+                  onClick={toggleAll}
+                  className="text-[10px] uppercase font-semibold tracking-wider text-indigo-400 hover:text-indigo-300"
                 >
-                  {prompt}
+                  {selectedDocumentIds.length === allDocs.length && allDocs.length > 0 ? "Deselect All" : "Select All"}
                 </button>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">Suggested prompts will appear here.</p>
-            )}
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-border/60 bg-card/70 p-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <BookOpenText className="h-4 w-4 text-primary" />
-            AI summary
-          </div>
-          <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">
-            {generatedSummary ?? "Generate a summary from your selected documents or current query."}
-          </p>
-        </section>
-
-        <section className="rounded-3xl border border-border/60 bg-card/70 p-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <SearchCode className="h-4 w-4 text-primary" />
-            Semantic results
-          </div>
-          <div className="mt-3 space-y-3">
-            {searchResults.length > 0 ? (
-              searchResults.map((item) => (
-                <div key={item.document_id} className="rounded-2xl bg-secondary/50 p-3">
-                  <p className="text-sm font-medium">{item.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{item.filename}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{item.excerpt}</p>
+              </div>
+              
+              {allDocs.length > 0 ? (
+                <div className="mt-2 max-h-40 overflow-y-auto space-y-1 rounded-lg bg-[#2a2a2a] p-2">
+                  {allDocs.map((doc) => (
+                    <div 
+                      key={doc.id} 
+                      className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-[#333333] cursor-pointer"
+                      onClick={() => toggleDocument(doc.id)}
+                    >
+                      {selectedDocumentIds.includes(doc.id) ? (
+                        <CheckSquare className="h-4 w-4 text-indigo-400 shrink-0" />
+                      ) : (
+                        <Square className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="truncate text-xs text-white flex-1">{doc.title}</span>
+                    </div>
+                  ))}
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">Run semantic document search to inspect top matches.</p>
-            )}
-          </div>
-        </section>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground italic">No documents uploaded.</p>
+              )}
+              
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Button className="h-16 flex-col gap-1 rounded-xl bg-[#2a2a2a] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" disabled={isWorking} onClick={() => void onGenerateSummary()}>
+                  <BookOpenText className="h-5 w-5 text-indigo-400" />
+                  <span className="text-xs">Summarize</span>
+                </Button>
+                <Button className="h-16 flex-col gap-1 rounded-xl bg-[#2a2a2a] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" disabled={isWorking} onClick={() => void onGenerateQuiz()}>
+                  <Cpu className="h-5 w-5 text-indigo-400" />
+                  <span className="text-xs">Quiz</span>
+                </Button>
+                <Button className="h-16 flex-col gap-1 rounded-xl bg-[#2a2a2a] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" disabled={isWorking} onClick={() => void onRunSemanticSearch()}>
+                  <SearchCode className="h-5 w-5 text-indigo-400" />
+                  <span className="text-xs">Search</span>
+                </Button>
+                <Button className="h-16 flex-col gap-1 rounded-xl bg-[#2a2a2a] hover:bg-[#333333] border-0 text-white shadow-none" variant="outline" onClick={() => void onExportConversation()}>
+                  <Download className="h-5 w-5 text-indigo-400" />
+                  <span className="text-xs">Export</span>
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
 
-        <section className="rounded-3xl border border-border/60 bg-card/70 p-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <BookOpenText className="h-4 w-4 text-primary" />
-            Quiz
-          </div>
-          <div className="mt-3 space-y-3">
-            {quiz.length > 0 ? (
-              quiz.map((item, index) => (
-                <div key={`${item.question}-${index}`} className="rounded-2xl bg-secondary/50 p-3">
-                  <p className="text-sm font-medium">{item.question}</p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    {item.difficulty}
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">{item.answer}</p>
-                </div>
-              ))
+          <TabsContent value="documents" className="m-0 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold text-white">Selected Documents</div>
+              <span className="rounded-lg bg-indigo-600/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
+                {selectedDocs.length}
+              </span>
+            </div>
+            
+            {selectedDocs.length > 0 ? (
+              <div className="space-y-2">
+                {selectedDocs.map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between rounded-xl border border-border/40 bg-[#1a1a1a] p-3 transition-colors hover:bg-[#2a2a2a]">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
+                        <FileText className="h-4 w-4" />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="truncate text-sm font-medium text-white">{doc.title}</span>
+                        <span className="text-xs text-muted-foreground">{formatBytes(doc.file_size)}</span>
+                      </div>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void deleteMutation.mutateAsync(doc.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Generate a quiz from your knowledge base.</p>
+              <div className="rounded-xl border border-dashed border-border/40 p-6 text-center text-sm text-muted-foreground">
+                No documents selected. Use the document manager to select files for your conversation.
+              </div>
             )}
-          </div>
-        </section>
-      </div>
+          </TabsContent>
+
+          <TabsContent value="memory" className="m-0 space-y-4">
+            <section className="rounded-xl border border-border/40 bg-[#1a1a1a] p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <Lightbulb className="h-4 w-4 text-indigo-500" />
+                Suggested Prompts
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {suggestedPrompts.length > 0 ? (
+                  suggestedPrompts.map((prompt) => (
+                    <button
+                      key={prompt}
+                      className="rounded-lg bg-[#2a2a2a] px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-[#333333] hover:text-white"
+                      onClick={() => onUsePrompt(prompt)}
+                      type="button"
+                    >
+                      {prompt}
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">Suggested prompts will appear here.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-xl border border-border/40 bg-[#1a1a1a] p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <BookOpenText className="h-4 w-4 text-indigo-500" />
+                AI Summary
+              </div>
+              <p className="mt-3 whitespace-pre-wrap text-xs text-muted-foreground leading-relaxed">
+                {generatedSummary ?? "Generate a summary from your selected documents or current query."}
+              </p>
+            </section>
+
+            <section className="rounded-xl border border-border/40 bg-[#1a1a1a] p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <SearchCode className="h-4 w-4 text-indigo-500" />
+                Semantic Results
+              </div>
+              <div className="mt-3 space-y-3">
+                {searchResults.length > 0 ? (
+                  searchResults.map((item) => (
+                    <div key={item.document_id} className="rounded-lg bg-[#2a2a2a] p-3">
+                      <p className="text-xs font-medium text-white">{item.title}</p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">{item.filename}</p>
+                      <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{item.excerpt}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">Run semantic document search to inspect top matches.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-xl border border-border/40 bg-[#1a1a1a] p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <BookOpenText className="h-4 w-4 text-indigo-500" />
+                Quiz
+              </div>
+              <div className="mt-3 space-y-3">
+                {quiz.length > 0 ? (
+                  quiz.map((item, index) => (
+                    <div key={`${item.question}-${index}`} className="rounded-lg bg-[#2a2a2a] p-3">
+                      <p className="text-xs font-medium text-white">{item.question}</p>
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-indigo-400">
+                        {item.difficulty}
+                      </p>
+                      <p className="mt-2 text-xs text-muted-foreground">{item.answer}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">Generate a quiz from your knowledge base.</p>
+                )}
+              </div>
+            </section>
+          </TabsContent>
+        </div>
+      </Tabs>
     </aside>
   );
 }

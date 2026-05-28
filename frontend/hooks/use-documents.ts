@@ -29,7 +29,7 @@ export function useUploadDocument() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       file,
       title,
       onProgress
@@ -37,10 +37,13 @@ export function useUploadDocument() {
       file: File;
       title: string;
       onProgress?: (progress: number) => void;
-    }) => uploadDocument(file, title, onProgress),
+    }) => {
+      const doc = await uploadDocument(file, title, onProgress);
+      return reindexDocument(doc.id);
+    },
     onSuccess() {
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
-      toast.success("Document queued for indexing.");
+      toast.success("Document uploaded and indexed.");
     },
     onError(error: any) {
       toast.error(error?.response?.data?.detail ?? "Upload failed.");

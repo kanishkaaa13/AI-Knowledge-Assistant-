@@ -166,6 +166,7 @@ export function ChatShell({
             onGenerateSummary={onGenerateSummary}
             onRunSemanticSearch={onRunSemanticSearch}
             onUsePrompt={onUseSuggestedPrompt}
+            onSelectedDocumentIdsChange={onSelectedDocumentIdsChange}
           />
         </main>
       </div>
