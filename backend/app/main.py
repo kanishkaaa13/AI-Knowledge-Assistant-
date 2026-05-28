@@ -43,20 +43,17 @@ def create_application() -> FastAPI:
         redoc_url="/redoc" if settings.APP_ENV.lower() != "production" else None,
     )
 
-    app.add_middleware(RateLimitMiddleware)
-    app.add_middleware(JWTContextMiddleware)
-    app.add_middleware(SecurityHeadersMiddleware)
-    origins = list(settings.BACKEND_CORS_ORIGINS)
-    if "http://localhost:3000" not in origins:
-        origins.append("http://localhost:3000")
-
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,
+        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(JWTContextMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
+    
     register_exception_handlers(app)
 
     # Mount static file serving for uploads

@@ -2,7 +2,7 @@ import { env } from "@/lib/env";
 
 export interface StreamPayload {
   query: string;
-  model: "llama3" | "mistral";
+  model: string;
   top_k?: number;
   hybrid?: boolean;
   conversation_id?: string;
@@ -86,7 +86,10 @@ export async function streamAssistantChat(
             handlers.onDone?.(data);
             break;
           case "error":
-            handlers.onError?.(data.message ?? "An error occurred in the stream.");
+            const errorText = typeof data.message === "string" 
+              ? data.message 
+              : JSON.stringify(data.message);
+            handlers.onError?.(errorText);
             break;
           default:
             break;

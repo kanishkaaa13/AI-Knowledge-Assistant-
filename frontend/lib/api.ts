@@ -166,7 +166,7 @@ export async function deleteConversation(conversationId: string) {
 
 export async function queryAssistant(payload: {
   query: string;
-  model: "llama3" | "mistral";
+  model: string;
   top_k?: number;
   hybrid?: boolean;
   conversation_id?: string;
@@ -187,7 +187,7 @@ export async function queryAssistant(payload: {
 
 export async function summarizeAssistantKnowledge(payload: {
   query: string;
-  model: "llama3" | "mistral";
+  model: string;
   document_ids?: string[];
 }) {
   const { data } = await apiClient.post<AssistantSummaryResponse>("/assistant/summaries", payload);
@@ -196,7 +196,7 @@ export async function summarizeAssistantKnowledge(payload: {
 
 export async function generateAssistantQuiz(payload: {
   query: string;
-  model: "llama3" | "mistral";
+  model: string;
   document_ids?: string[];
 }) {
   const { data } = await apiClient.post<AssistantQuizResponse>("/assistant/quiz", payload);

@@ -224,9 +224,15 @@ async def stream_assistant_chat(
 
                 yield f"data: {json.dumps(data)}\n\n"
 
-        except Exception:
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            print(f"[STREAM ERROR] {tb}")
             logger.exception("Unhandled error in SSE event_stream for user %s.", current_user.id)
-            error_payload = json.dumps({"type": "error", "message": "An internal error occurred."})
+            error_payload = json.dumps({
+                "type": "error",
+                "message": f"Stream error: {str(e)}"
+            })
             yield f"data: {error_payload}\n\n"
 
     return StreamingResponse(

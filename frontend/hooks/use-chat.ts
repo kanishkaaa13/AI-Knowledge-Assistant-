@@ -458,6 +458,7 @@ export function useChat() {
           {
             query: prompt,
             model: settings.model as StreamPayload["model"],
+            top_k: 4,
             hybrid: true,
             conversation_id: isNewConversation ? undefined : conversationId,
             document_ids: effectiveDocumentIds
@@ -492,6 +493,7 @@ export function useChat() {
         const response = await queryAssistant({
           query: prompt,
           model: settings.model,
+          top_k: 4,
           hybrid: true,
           conversation_id: isNewConversation ? undefined : conversationId,
           document_ids: effectiveDocumentIds
@@ -508,9 +510,9 @@ export function useChat() {
 
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
     } catch (error: any) {
-      let errorMessage = error?.message || "Something went wrong.";
-      if (error?.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
+      let errorMessage = error?.response?.data?.detail || error?.message || "An unexpected error occurred";
+      if (typeof errorMessage !== "string") {
+        errorMessage = JSON.stringify(errorMessage);
       }
       updateAssistantMessage(() => `⚠️ Error: ${errorMessage}`, true);
       toast.error("An error occurred. Check the chat for details.");
