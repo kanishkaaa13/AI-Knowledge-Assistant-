@@ -21,6 +21,7 @@ import {
 import { streamAssistantChat } from "@/lib/chat-stream";
 import type { StreamPayload } from "@/lib/chat-stream";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useDocuments } from "@/hooks/use-documents";
 import type {
   AssistantQuizItem,
   ConversationDetail as ApiConversationDetail,
@@ -117,6 +118,7 @@ export function useChat() {
   const [quiz, setQuiz] = React.useState<AssistantQuizItem[]>([]);
   const [searchResults, setSearchResults] = React.useState<SemanticDocumentSearchItem[]>([]);
   const debouncedSearch = useDebouncedValue(historySearch, 250);
+  const { data: allDocs = [] } = useDocuments();
 
   const conversationsQuery = useQuery({
     queryKey: ["conversations"],
@@ -265,10 +267,11 @@ export function useChat() {
 
   const toolMutation = useMutation({
     mutationFn: async (tool: "summary" | "quiz" | "search") => {
+      const effectiveDocumentIds = selectedDocumentIds.length > 0 ? selectedDocumentIds : allDocs.map(d => d.id);
       const basePayload = {
         query: latestReferenceText,
         model: settings.model,
-        document_ids: selectedDocumentIds
+        document_ids: effectiveDocumentIds
       };
       if (tool === "summary") {
         return {
@@ -380,6 +383,7 @@ export function useChat() {
     };
 
     try {
+      const effectiveDocumentIds = selectedDocumentIds.length > 0 ? selectedDocumentIds : allDocs.map(d => d.id);
       if (settings.streamResponses) {
         await streamAssistantChat(
           {
@@ -387,7 +391,7 @@ export function useChat() {
             model: settings.model as StreamPayload["model"],
             hybrid: true,
             conversation_id: conversationId,
-            document_ids: selectedDocumentIds
+            document_ids: effectiveDocumentIds
           } satisfies StreamPayload,
           {
             onToken(token) {
@@ -415,7 +419,7 @@ export function useChat() {
           model: settings.model,
           hybrid: true,
           conversation_id: conversationId,
-          document_ids: selectedDocumentIds
+          document_ids: effectiveDocumentIds
         });
         updateAssistantMessage(() => response.answer, true);
       }
@@ -439,7 +443,8 @@ export function useChat() {
     selectedDocumentIds,
     settings.model,
     settings.streamResponses,
-    updateConversationCache
+    updateConversationCache,
+    allDocs
   ]);
 
   return {

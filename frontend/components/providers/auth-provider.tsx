@@ -94,9 +94,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setStatus("unauthenticated");
       setClientAuthCookie(false);
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        document.cookie.split(";").forEach((c) => {
+          document.cookie = c
+            .replace(/^ +/, "")
+            .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+      }
       toast.error("Your session expired. Please log in again.");
 
-      if (pathname?.startsWith("/dashboard")) {
+      if (pathname !== "/login" && pathname !== "/register") {
         router.replace("/login");
       }
     };

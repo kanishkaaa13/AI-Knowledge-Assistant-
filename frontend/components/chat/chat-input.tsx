@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUp, Mic, Paperclip, Sparkles, StopCircle } from "lucide-react";
+import { ArrowUp, Mic, Paperclip, Sparkles, StopCircle, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -111,13 +111,9 @@ export function ChatInput({
             >
               {isSending ? (
                 <>
-                  <span className="flex items-center gap-1">
-                    <span className="flex gap-1">
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current" style={{ animationDelay: '0ms' }} />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current" style={{ animationDelay: '150ms' }} />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current" style={{ animationDelay: '300ms' }} />
-                    </span>
-                    <span className="ml-2">Assistant is thinking...</span>
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Thinking...</span>
                   </span>
                 </>
               ) : (

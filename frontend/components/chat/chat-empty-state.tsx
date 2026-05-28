@@ -18,6 +18,8 @@ const prompts = [
   }
 ];
 
+export function ChatEmptyState() {
+  return (
     <div className="flex h-full flex-1 items-center justify-center px-4 py-10 sm:px-6">
       <div className="w-full max-w-2xl space-y-8 flex flex-col items-center text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500 mb-4 shadow-lg shadow-indigo-500/5">

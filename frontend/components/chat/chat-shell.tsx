@@ -1,9 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Menu } from "lucide-react";
+import { Menu, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { AssistantQuizItem, SemanticDocumentSearchItem } from "@/types/api";
 import type { AssistantSettings, ConversationGroup } from "@/types/chat";
 
@@ -97,6 +98,7 @@ export function ChatShell({
   onUseSuggestedPrompt
 }: ChatShellProps) {
   const { user } = useAuth();
+  const [isToolsOpen, setIsToolsOpen] = React.useState(false);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gradient-to-b from-[#0a0a0a] to-[#111111]">
@@ -134,6 +136,16 @@ export function ChatShell({
                 subtitle="Chat with your private knowledge assistant"
               />
             </div>
+            <div className="flex items-center gap-3">
+              <Button
+                className="xl:hidden"
+                size="sm"
+                variant="secondary"
+                onClick={() => setIsToolsOpen(true)}
+              >
+                <Sparkles className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -167,6 +179,7 @@ export function ChatShell({
             onRunSemanticSearch={onRunSemanticSearch}
             onUsePrompt={onUseSuggestedPrompt}
             onSelectedDocumentIdsChange={onSelectedDocumentIdsChange}
+            className="hidden xl:flex"
           />
         </main>
       </div>
@@ -192,6 +205,26 @@ export function ChatShell({
           onOpenSettings={() => onSettingsOpenChange(true)}
         />
       </MobileSidebar>
+
+      <Dialog open={isToolsOpen} onOpenChange={setIsToolsOpen}>
+        <DialogContent className="right-0 top-0 h-screen max-w-[340px] translate-x-0 translate-y-0 rounded-none border-l p-0 xl:hidden">
+          <AssistantToolsPanel
+            generatedSummary={generatedSummary}
+            isWorking={isWorkingTools}
+            quiz={quiz}
+            searchResults={searchResults}
+            selectedDocumentIds={selectedDocumentIds}
+            suggestedPrompts={suggestedPrompts}
+            onExportConversation={() => activeConversationId ? onExportConversation(activeConversationId) : Promise.resolve()}
+            onGenerateQuiz={onGenerateQuiz}
+            onGenerateSummary={onGenerateSummary}
+            onRunSemanticSearch={onRunSemanticSearch}
+            onUsePrompt={onUseSuggestedPrompt}
+            onSelectedDocumentIdsChange={onSelectedDocumentIdsChange}
+            className="flex"
+          />
+        </DialogContent>
+      </Dialog>
 
       <SettingsModal
         onOpenChange={onSettingsOpenChange}

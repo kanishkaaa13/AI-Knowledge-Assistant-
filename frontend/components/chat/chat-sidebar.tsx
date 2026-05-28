@@ -164,7 +164,12 @@ export function ChatSidebar({
     title: string;
   } | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
+  const [isMounted, setIsMounted] = React.useState(false);
   const { user } = useAuth();
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Client-side search filter on top of whatever groupedConversations provides
   const searchLower = historySearch.toLowerCase().trim();
@@ -235,9 +240,9 @@ export function ChatSidebar({
             </div>
           ) : !hasConversations ? (
             <div className="rounded-xl border border-dashed border-border/40 bg-[#1a1a1a]/50 p-5 text-sm text-muted-foreground">
-              {historySearch
+              {isMounted ? (historySearch
                 ? `No conversations match "${historySearch}".`
-                : "No saved conversations yet. Start a new grounded chat and it will appear here."}
+                : "No saved conversations yet. Start a new grounded chat and it will appear here.") : null}
             </div>
           ) : (
             <div className="space-y-4">

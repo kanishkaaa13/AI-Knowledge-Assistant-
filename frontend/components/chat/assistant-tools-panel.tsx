@@ -3,6 +3,7 @@
 import * as React from "react";
 import { BookOpenText, Download, FileText, Lightbulb, SearchCode, Sparkles, Trash2, Cpu, CheckSquare, Square } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import type { AssistantQuizItem, SemanticDocumentSearchItem } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,7 +27,9 @@ export function AssistantToolsPanel({
   onGenerateQuiz,
   onGenerateSummary,
   onRunSemanticSearch,
-  onUsePrompt
+  onUsePrompt,
+  onSelectedDocumentIdsChange,
+  className
 }: {
   generatedSummary: string | null;
   isWorking: boolean;
@@ -40,6 +43,7 @@ export function AssistantToolsPanel({
   onRunSemanticSearch: () => Promise<void>;
   onUsePrompt: (prompt: string) => void;
   onSelectedDocumentIdsChange: (ids: string[]) => void;
+  className?: string;
 }) {
   const { data: allDocs = [] } = useDocuments();
   const deleteMutation = useDeleteDocument();
@@ -65,7 +69,7 @@ export function AssistantToolsPanel({
   }, [allDocs, selectedDocumentIds]);
 
   return (
-    <aside className="hidden h-screen w-[340px] shrink-0 flex-col border-l border-border/40 bg-[#0f0f0f] xl:flex">
+    <aside className={cn("h-screen w-[340px] shrink-0 flex-col border-l border-border/40 bg-[#0f0f0f]", className)}>
       <Tabs defaultValue="tools" className="flex h-full flex-col">
         <div className="flex-shrink-0 p-4 border-b border-border/40">
           <TabsList className="grid w-full grid-cols-3 bg-[#1a1a1a]">
