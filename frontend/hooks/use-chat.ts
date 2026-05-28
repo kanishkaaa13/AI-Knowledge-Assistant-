@@ -119,11 +119,12 @@ export function useChat() {
   const debouncedSearch = useDebouncedValue(historySearch, 250);
 
   const conversationsQuery = useQuery({
-    queryKey: ["conversations", debouncedSearch],
+    queryKey: ["conversations"],
     queryFn: async () => {
-      const data = await listConversations(debouncedSearch || undefined);
+      const data = await listConversations();
       return data.map(mapConversationPreview);
-    }
+    },
+    staleTime: 30_000
   });
 
   const activeConversationQuery = useQuery({

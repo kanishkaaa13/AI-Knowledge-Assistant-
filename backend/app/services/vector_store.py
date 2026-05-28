@@ -291,5 +291,9 @@ def get_vector_store_service() -> VectorStoreService:
     """Return the application-wide singleton VectorStoreService."""
     global _vector_store_service
     if _vector_store_service is None:
-        _vector_store_service = VectorStoreService()
+        from app.core.config import settings
+        _vector_store_service = VectorStoreService(
+            persist_directory=settings.CHROMA_PERSIST_DIRECTORY,
+            model_name=settings.EMBEDDING_MODEL_NAME,
+        )
     return _vector_store_service
