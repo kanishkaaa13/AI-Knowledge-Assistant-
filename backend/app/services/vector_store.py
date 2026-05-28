@@ -134,12 +134,18 @@ class VectorStoreService:
         )
         embeddings = model.encode(documents, show_progress_bar=False).tolist()
 
+        print(f"[INDEX] Collection: {collection.name}")
+        if metadatas:
+            print(f"[INDEX] Metadata on chunks: {metadatas[0]}")
+        print(f"[INDEX] Upserting {len(ids)} vectors into ChromaDB")
+
         collection.upsert(
             ids=ids,
             documents=documents,
             metadatas=metadatas,
             embeddings=embeddings,
         )
+        print(f"[INDEX] Upsert complete. Collection now has {collection.count()} total vectors.")
         logger.info("Upserted %d vectors for user %s.", len(ids), user_id)
 
     def upsert_vectors(self, user_id: uuid.UUID, records: list[VectorRecord]) -> None:
@@ -231,7 +237,8 @@ class VectorStoreService:
                         ]
                     }
 
-            print(f"[RAG] WHERE clause: {where_clause}")
+            print(f"[RAG 3] Query embedding shape: {len(query_embedding)}")
+            print(f"[QUERY] Filter used: {where_clause}")
 
             # Clamp n_results to the actual collection size
             n_results = min(top_k, count)

@@ -107,9 +107,13 @@ class AssistantChatService:
         document_ids: list[str] | None = None,
     ) -> AsyncIterator[str]:
         import asyncio
-        
-        print(f"[STREAM] query={query!r}")
-        print(f"[STREAM] document_ids={document_ids!r}")
+
+        # ────────────────────────────────────────────────────────────
+        # RAG Debug Pipeline
+        # ────────────────────────────────────────────────────────────
+        print(f"[RAG 1] Selected document IDs from request: {document_ids}")
+        collection_name = f"user_collection_{user_id}"
+        print(f"[RAG 2] Collection name being queried: {collection_name}")
         print(f"[STREAM] model={model!r}")
 
         # ── PATH A: No documents selected — direct AI chat ──────────────
@@ -119,20 +123,19 @@ class AssistantChatService:
                 f"User: {query}\nAssistant:"
             )
             print(f"[STREAM] No docs selected — direct chat mode")
-            
+
             yield f"data: {json.dumps({'type': 'context', 'context': '', 'chunks': [], 'model': model})}\n\n"
-            
+
             full_answer = ""
             try:
                 async for token in self.ollama_service.stream_generate(prompt=prompt, model=model):
-                    print(f"[STREAM] Token: {token!r}")
                     full_answer += token
                     yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
             except Exception as e:
                 print(f"[STREAM ERROR] Direct chat failed: {e}")
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
                 return
-            
+
             final = full_answer.strip() or "I was unable to generate a response. Please try again."
             yield f"data: {json.dumps({'type': 'done', 'answer': final, 'prompt': prompt})}\n\n"
             return
@@ -141,7 +144,7 @@ class AssistantChatService:
         search_results = []
         context = ""
         chunks = []
-        
+
         try:
             print(f"[STREAM] Running RAG retrieval...")
             search_results = await self.vector_store.similarity_search(
@@ -150,41 +153,46 @@ class AssistantChatService:
                 top_k=top_k,
                 document_ids=document_ids,
             )
-            print(f"[STREAM] RAG results: {len(search_results)} chunks")
+            print(f"[RAG 5] Number of chunks retrieved: {len(search_results)}")
         except Exception as e:
             print(f"[STREAM] ChromaDB retrieval failed: {e}")
+            import traceback
+            print(traceback.format_exc())
             search_results = []
 
         if search_results:
             context = "\n\n".join([r.document for r in search_results])
             chunks = _format_chunks(search_results)
-            print(f"[STREAM] Context length: {len(context)} chars")
-        else:
-            print(f"[STREAM] No chunks found — falling back to direct chat")
+
+        print(f"[RAG 4] ChromaDB raw results: {[{'id': r.id, 'score': r.semantic_score, 'meta': r.metadata} for r in search_results]}")
+        print(f"[RAG 6] Context being sent to LLM: {context[:500] if context else 'EMPTY'}")
 
         # Send context metadata to frontend
         yield f"data: {json.dumps({'type': 'context', 'context': context, 'chunks': chunks, 'model': model})}\n\n"
 
-        # Build prompt
+        # ── Step 6: Build prompt exactly as specified ──────────────────────
         if context:
-            prompt = build_rag_prompt(query=query, context=context)
-        else:
-            # No context found — answer from general knowledge with a disclaimer
             prompt = (
-                "You are a helpful AI assistant. "
-                "The user asked about their documents but no relevant content was found in them. "
-                "Answer helpfully from your general knowledge and start your reply with: "
-                "\"I couldn't find this in your documents, but based on general knowledge: \""
-                f"\n\nUser question: {query}\nAssistant:"
+                f"Use the following document content to answer:\n\n"
+                f"{context}\n\n"
+                f"Question: {query}\n"
+                f"Answer based on the documents above."
             )
-        
+        else:
+            prompt = (
+                f"Answer from general knowledge. "
+                f"Note: no relevant content was found in the user's uploaded documents.\n"
+                f"Start your reply with: \"I couldn't find this in your documents, "
+                f"but based on general knowledge: \"\n\n"
+                f"Question: {query}\nAnswer:"
+            )
+
         print(f"[STREAM] Prompt length: {len(prompt)} chars")
         print(f"[STREAM] Prompt preview: {prompt[:300]!r}")
-        
+
         full_answer = ""
         try:
             async for token in self.ollama_service.stream_generate(prompt=prompt, model=model):
-                print(f"[STREAM] Token: {token!r}")
                 full_answer += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
         except (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectError, asyncio.TimeoutError):
