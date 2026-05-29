@@ -105,7 +105,8 @@ def create_application() -> FastAPI:
     import os
     origins = [
         "http://localhost:3000",
-        os.getenv("FRONTEND_URL", "https://your-app.vercel.app")
+        "https://ai-knowledge-app-3.vercel.app",
+        os.getenv("FRONTEND_URL", "https://ai-knowledge-app-3.vercel.app")
     ]
     
     app.add_middleware(

@@ -26,8 +26,8 @@ def set_auth_cookies(response: Response, user: User) -> None:
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=False,  # Set to True in production with HTTPS
-        samesite="lax",
+        secure=True,
+        samesite="none",
     )
 
 
@@ -209,7 +209,12 @@ async def logout(response: Response) -> dict[str, str]:
     Returns:
         dict: Success message
     """
-    response.delete_cookie(key="access_token")
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        secure=True,
+        samesite="none",
+    )
     return {"message": "Logged out successfully."}
 
 
