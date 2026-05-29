@@ -19,6 +19,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://ai-knowledge-app-3.vercel.app",
     "https://ai-knowledge-app-3-git-main-kanishkaarde99-4507s-projects.vercel.app",
+    "https://ai-knowledge-app-3-ozutp68ne-kanishkaarde99-4507s-projects.vercel.app",
 ]
 
 from app.api.v1.router import api_router
@@ -136,6 +137,7 @@ def create_application() -> FastAPI:
             "http://localhost:3000",
             "https://ai-knowledge-app-3.vercel.app",
             "https://ai-knowledge-app-3-git-main-kanishkaarde99-4507s-projects.vercel.app",
+            "https://ai-knowledge-app-3-ozutp68ne-kanishkaarde99-4507s-projects.vercel.app",
         ],
         allow_credentials=True,
         allow_methods=["*"],

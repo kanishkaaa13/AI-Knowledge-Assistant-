@@ -81,6 +81,7 @@ class CORSFallbackMiddleware(BaseHTTPMiddleware):
             "http://localhost:3000",
             "https://ai-knowledge-app-3.vercel.app",
             "https://ai-knowledge-app-3-git-main-kanishkaarde99-4507s-projects.vercel.app",
+            "https://ai-knowledge-app-3-ozutp68ne-kanishkaarde99-4507s-projects.vercel.app",
         ]
         if origin in allowed:
             response.headers["Access-Control-Allow-Origin"] = origin
