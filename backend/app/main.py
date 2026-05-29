@@ -102,20 +102,30 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
     )
 
-    import os
-    origins = [
-        "http://localhost:3000",
-        "https://ai-knowledge-app-3.vercel.app",
-        os.getenv("FRONTEND_URL", "https://ai-knowledge-app-3.vercel.app")
-    ]
-    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,
+        allow_origins=[
+            "http://localhost:3000",
+            "https://ai-knowledge-app-3.vercel.app",
+            "https://ai-knowledge-app-3-git-main-kanishkaarde99-4507s-projects.vercel.app",
+        ],
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
+        expose_headers=["*"],
     )
+
+    @app.options("/{rest_of_path:path}")
+    async def preflight_handler(rest_of_path: str):
+        return JSONResponse(
+            content={},
+            headers={
+                "Access-Control-Allow-Origin": "https://ai-knowledge-app-3.vercel.app",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Credentials": "true",
+            }
+        )
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(JWTContextMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
