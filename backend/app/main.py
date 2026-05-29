@@ -9,10 +9,17 @@ if sys.stderr.encoding and sys.stderr.encoding.lower() != "utf-8":
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "https://ai-knowledge-app-3.vercel.app",
+    "https://ai-knowledge-app-3-git-main-kanishkaarde99-4507s-projects.vercel.app",
+]
 
 from app.api.v1.router import api_router
 from app import models  # noqa: F401
@@ -23,16 +30,24 @@ from app.core import security
 
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(Exception)
-    async def global_exception_handler(_, exc: Exception):
+    async def global_exception_handler(request: Request, exc: Exception):
         logging.error(f"Unhandled exception: {exc}", exc_info=True)
+        origin = request.headers.get("origin", "")
+        headers = {}
+        if origin in ALLOWED_ORIGINS:
+            headers["Access-Control-Allow-Origin"] = origin
+            headers["Access-Control-Allow-Credentials"] = "true"
+
         if settings.APP_ENV.lower() == "production":
             return JSONResponse(
                 status_code=500,
-                content={"detail": "Internal server error"}
+                content={"detail": "Internal server error"},
+                headers=headers
             )
         return JSONResponse(
             status_code=500,
-            content={"detail": str(exc)}
+            content={"detail": str(exc)},
+            headers=headers
         )
 
 
@@ -101,6 +116,19 @@ def create_application() -> FastAPI:
         redoc_url="/redoc" if settings.APP_ENV.lower() != "production" else None,
         lifespan=lifespan,
     )
+
+    @app.exception_handler(HTTPException)
+    async def cors_aware_http_exception_handler(request: Request, exc: HTTPException):
+        origin = request.headers.get("origin", "")
+        headers = {}
+        if origin in ALLOWED_ORIGINS:
+            headers["Access-Control-Allow-Origin"] = origin
+            headers["Access-Control-Allow-Credentials"] = "true"
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=headers,
+        )
 
     app.add_middleware(
         CORSMiddleware,
