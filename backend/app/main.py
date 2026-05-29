@@ -76,7 +76,7 @@ def create_application() -> FastAPI:
     async def keep_model_warm():
         while True:
             try:
-                async with httpx.AsyncClient(timeout=30) as client:
+                async with httpx.AsyncClient(timeout=120) as client:
                     await client.post(
                         "http://localhost:11434/api/generate",
                         json={

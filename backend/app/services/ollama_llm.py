@@ -44,7 +44,7 @@ class OllamaLLMService:
                 "stream": False,
                 "max_tokens": 1024
             }
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=300.0) as client:
                 try:
                     response = await client.post(
                         "https://api.groq.com/openai/v1/chat/completions",
@@ -74,7 +74,7 @@ class OllamaLLMService:
             }
         }
 
-        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
             try:
                 response = await client.post(f"{self.base_url}/api/chat", json=payload)
                 if response.status_code == 404:
@@ -114,7 +114,7 @@ class OllamaLLMService:
                 "stream": True,
                 "max_tokens": 1024
             }
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=300.0) as client:
                 async with client.stream(
                     "POST",
                     "https://api.groq.com/openai/v1/chat/completions",
@@ -152,7 +152,7 @@ class OllamaLLMService:
         print(f"[OLLAMA] POST {url} model={selected_model}")
 
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
                 async with client.stream("POST", url, json=payload) as response:
                     if response.status_code != 200:
                         error_text = await response.aread()
