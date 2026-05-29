@@ -162,7 +162,6 @@ def create_application() -> FastAPI:
     async def health_check() -> dict[str, str]:
         return {"status": "healthy", "environment": settings.APP_ENV}
 
-    from fastapi import Request
     @app.get("/cors-test")
     async def cors_test(request: Request):
         return JSONResponse(
