@@ -11,7 +11,7 @@
 
 **An AI-powered personal knowledge workspace designed to supercharge your productivity.**
 
-[**View Live Demo**](#live-demo) • [**Report a Bug**](https://github.com/kanishkaaa13/AI-Knowledge-Assistant-/issues) • [**Request a Feature**](https://github.com/kanishkaaa13/AI-Knowledge-Assistant-/issues)
+[**Report a Bug**](https://github.com/kanishkaaa13/AI-Knowledge-Assistant-/issues) • [**Request a Feature**](https://github.com/kanishkaaa13/AI-Knowledge-Assistant-/issues)
 
 </div>
 
