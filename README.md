@@ -27,22 +27,29 @@ Built on a robust **RAG (Retrieval-Augmented Generation) + LLM** architecture, t
 
 ## 📸 Screenshots
 
-<h3 align="center">🏠 Modern SaaS Dashboard</h3>
+<h3 align="center">🏠 AI Knowledge Assistant</h3>
 
 <p align="center">
   <img width="1701" height="966"
-       alt="Dashboard"
+       alt="AI Knowledge Assistant Dashboard"
        src="https://github.com/user-attachments/assets/da270a69-9c7c-4163-b72e-e47b4c4374b7" />
 </p>
 
-### 💬 Claude-Style Chat Interface
-![Claude-Style Chat Interface](assets/chat.png)
+<h3 align="center">📊 Analytics & Insights</h3>
 
-### 📊 Analytics & Insights
-![Analytics & Insights](assets/analytics.png)
+<p align="center">
+  <img width="1396" height="970"
+       alt="Analytics & Insights"
+       src="https://github.com/user-attachments/assets/b2eb8809-9e43-4b73-a668-9ceb23434455" />
+</p>
 
-### 📄 Document Management
-![Document Management](assets/documents.png)
+<h3 align="center">📄 Document Management</h3>
+
+<p align="center">
+  <img width="839" height="892"
+       alt="Document Management"
+       src="https://github.com/user-attachments/assets/bde5d782-43d5-4de6-a92e-116deb1dc22c" />
+</p>
 
 ---
 
