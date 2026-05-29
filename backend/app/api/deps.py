@@ -36,7 +36,15 @@ def get_current_user(
             detail="Authentication context mismatch.",
         )
 
-    user = db.get(User, uuid.UUID(subject))
+    try:
+        user_uuid = uuid.UUID(subject)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid subject identifier.",
+        )
+
+    user = db.get(User, user_uuid)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -63,6 +63,14 @@ async def register(
         )
 
     access_token = create_access_token(data={"sub": str(user.id)})
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=86400,
+    )
     return AuthResponse(
         user=UserRead.model_validate(user), 
         access_token=access_token,
@@ -142,6 +150,14 @@ async def login(
         )
 
     access_token = create_access_token(data={"sub": str(user.id)})
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=86400,
+    )
     return AuthResponse(
         user=UserRead.model_validate(user), 
         access_token=access_token,
@@ -197,6 +213,14 @@ async def refresh(
         )
     
     new_token = create_access_token(data={"sub": str(user.id)})
+    response.set_cookie(
+        key="access_token",
+        value=new_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=86400,
+    )
     return AuthResponse(
         user=UserRead.model_validate(user), 
         access_token=new_token,
@@ -206,10 +230,11 @@ async def refresh(
 
 
 @router.post("/logout")
-async def logout() -> dict[str, str]:
+async def logout(response: Response) -> dict[str, str]:
     """
     Log out the current user.
     """
+    response.delete_cookie(key="access_token", samesite="none", secure=True)
     return {"message": "Logged out successfully."}
 
 
