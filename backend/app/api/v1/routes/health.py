@@ -31,8 +31,7 @@ async def ollama_health_check() -> dict[str, str]:
 @router.get("/debug/chroma")
 async def debug_chroma() -> dict:
     """
-    Diagnostic endpoint: shows how many vectors are stored per user collection,
-    and verifies the ChromaDB persist directory exists.
+    Diagnostic endpoint: shows how many vectors are stored per user collection.
     """
     import os
     from pathlib import Path
@@ -47,24 +46,33 @@ async def debug_chroma() -> dict:
 
     vs = get_vector_store_service()
     try:
-        # List all collections
         all_collections = vs.client.list_collections()
         collection_info = []
         for col in all_collections:
             try:
                 c = vs.client.get_collection(col.name)
                 count = c.count()
-                # Peek at a few records to see what metadata keys are stored
-                sample = {}
+                sample_metadata: dict = {}
+                sample_ids: list = []
                 if count > 0:
-                    peek = c.peek(limit=1)
-                    sample_meta = (peek.get("metadatas") or [[]])[0]
-                    sample = sample_meta[0] if isinstance(sample_meta, list) else sample_meta
+                    # peek() returns a dict with lists: ids, documents, metadatas, embeddings
+                    peeked = c.peek(limit=1)
+                    raw_meta = peeked.get("metadatas") or []
+                    if raw_meta and isinstance(raw_meta, list) and len(raw_meta) > 0:
+                        first = raw_meta[0]
+                        # ChromaDB may return list-of-dicts or just a dict
+                        if isinstance(first, dict):
+                            sample_metadata = first
+                        elif isinstance(first, list) and len(first) > 0:
+                            sample_metadata = first[0]
+                    raw_ids = peeked.get("ids") or []
+                    sample_ids = raw_ids[:3] if raw_ids else []
                 collection_info.append({
                     "name": col.name,
                     "total_vectors": count,
-                    "sample_metadata_keys": list(sample.keys()) if sample else [],
-                    "sample_metadata": sample,
+                    "sample_ids": sample_ids,
+                    "sample_metadata_keys": list(sample_metadata.keys()),
+                    "sample_metadata": sample_metadata,
                 })
             except Exception as e:
                 collection_info.append({"name": col.name, "error": str(e)})
@@ -78,9 +86,11 @@ async def debug_chroma() -> dict:
             "collections": collection_info,
         }
     except Exception as exc:
+        import traceback
         return {
             "persist_directory": persist_dir,
             "persist_directory_absolute": dir_absolute,
             "persist_directory_exists": dir_exists,
             "error": str(exc),
+            "traceback": traceback.format_exc(),
         }

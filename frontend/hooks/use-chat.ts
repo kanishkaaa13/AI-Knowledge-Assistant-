@@ -140,23 +140,46 @@ export function useChat() {
   });
 
   const activeConversation = activeConversationQuery.data;
-  const latestReferenceText =
-    input.trim() ||
-    activeConversation?.messages.at(-1)?.content ||
-    activeConversation?.summary ||
-    "Summarize my selected documents";
+  // Detect whether any assistant message is currently streaming
+  const isCurrentlyStreaming = React.useMemo(
+    () => (activeConversation?.messages ?? []).some((m) => m.isStreaming),
+    [activeConversation?.messages]
+  );
+
+  // Only use the last message content once streaming is fully done
+  const latestReferenceText = React.useMemo(() => {
+    if (isCurrentlyStreaming) return null; // Don't recompute during stream
+    return (
+      input.trim() ||
+      activeConversation?.messages.findLast((m) => !m.isStreaming)?.content ||
+      activeConversation?.summary ||
+      "Summarize my selected documents"
+    );
+  }, [
+    isCurrentlyStreaming,
+    input,
+    // Only update when the conversation itself changes (id or message count), NOT on content changes
+    activeConversation?.id,
+    activeConversation?.messageCount,
+    activeConversation?.summary,
+  ]);
 
   const suggestedPromptsQuery = useQuery({
     queryKey: ["assistant-suggested-prompts", latestReferenceText, settings.model, selectedDocumentIds],
     queryFn: async () => {
       const result = await getSuggestedPrompts({
-        query: latestReferenceText,
+        query: latestReferenceText!,
         model: settings.model,
         document_ids: selectedDocumentIds
       });
       return result.prompts;
     },
-    enabled: Boolean(latestReferenceText)
+    // Guard: only call when NOT streaming AND we have a reference text
+    enabled: Boolean(latestReferenceText) && !isCurrentlyStreaming,
+    staleTime: 60_000,       // Don't refetch for 60s after a successful fetch
+    gcTime: 120_000,         // Keep in cache for 2 min
+    refetchOnWindowFocus: false, // Never refetch just because the user switched tabs
+    retry: false,            // Don't retry on 429 — just let it be
   });
 
   React.useEffect(() => {

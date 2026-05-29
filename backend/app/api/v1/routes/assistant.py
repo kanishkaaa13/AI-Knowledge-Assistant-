@@ -300,7 +300,7 @@ async def suggested_prompts(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> SuggestedPromptsResponse:
-    apply_rate_limit(request, scope="assistant-suggested-prompts", limit=20, user_id=str(current_user.id))
+    apply_rate_limit(request, scope="assistant-suggested-prompts", limit=60, user_id=str(current_user.id))
     payload.query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
     result = await AssistantFeatureService(get_vector_store_service()).suggested_prompts(
         user=current_user,

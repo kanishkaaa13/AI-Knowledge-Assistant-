@@ -108,10 +108,17 @@ class VectorStoreService:
         regular (non-async) ingestion code.  Do NOT ``await`` it.
         """
         if not chunks_list:
+            print("[INDEX DEBUG] add_documents_to_vector_store called with EMPTY chunks_list — skipping")
             return
 
+        print(f"[INDEX DEBUG] Loading embedding model: {self.model_name}")
         model = self._get_embedding_model_sync()
+        print(f"[INDEX DEBUG] Embedding model loaded OK")
+
         collection = self._get_or_create_collection(user_id)
+        count_before = collection.count()
+        print(f"[INDEX DEBUG] Collection name used: {collection.name}")
+        print(f"[INDEX DEBUG] Collection count BEFORE upsert: {count_before}")
 
         ids = [str(chunk.get("id", "")) for chunk in chunks_list]
         documents = [chunk.get("content", "") for chunk in chunks_list]
@@ -129,23 +136,40 @@ class VectorStoreService:
                     metadata[k] = str(v)
             metadatas.append(metadata)
 
-        logger.debug(
-            "Generating embeddings for %d chunks (user=%s)…", len(documents), user_id
-        )
-        embeddings = model.encode(documents, show_progress_bar=False).tolist()
+        print(f"[INDEX DEBUG] Metadata stored on chunks: {metadatas[:1]}")
+        print(f"[INDEX DEBUG] Total chunks to store: {len(ids)}")
+        print(f"[INDEX DEBUG] Generating embeddings for {len(documents)} chunks...")
+
+        try:
+            embeddings = model.encode(documents, show_progress_bar=False).tolist()
+            print(f"[INDEX DEBUG] Embeddings generated OK. Shape: {len(embeddings)} x {len(embeddings[0]) if embeddings else 0}")
+        except Exception as e:
+            print(f"[INDEX DEBUG] EMBEDDING FAILED: {e}")
+            raise
 
         print(f"[INDEX] Collection: {collection.name}")
         if metadatas:
             print(f"[INDEX] Metadata on chunks: {metadatas[0]}")
         print(f"[INDEX] Upserting {len(ids)} vectors into ChromaDB")
 
-        collection.upsert(
-            ids=ids,
-            documents=documents,
-            metadatas=metadatas,
-            embeddings=embeddings,
-        )
-        print(f"[INDEX] Upsert complete. Collection now has {collection.count()} total vectors.")
+        try:
+            collection.upsert(
+                ids=ids,
+                documents=documents,
+                metadatas=metadatas,
+                embeddings=embeddings,
+            )
+        except Exception as e:
+            print(f"[INDEX DEBUG] CHROMA UPSERT FAILED: {e}")
+            import traceback
+            print(traceback.format_exc())
+            raise
+
+        count_after = collection.count()
+        print(f"[INDEX] Upsert complete. Collection now has {count_after} total vectors.")
+        if count_after == count_before:
+            print(f"[INDEX DEBUG] WARNING: Count did not increase! Before={count_before}, After={count_after}")
+            print(f"[INDEX DEBUG] This may mean the same IDs already existed and were updated (which is correct for re-index)")
         logger.info("Upserted %d vectors for user %s.", len(ids), user_id)
 
     def upsert_vectors(self, user_id: uuid.UUID, records: list[VectorRecord]) -> None:
