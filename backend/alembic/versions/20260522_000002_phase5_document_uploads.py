@@ -21,14 +21,14 @@ def upgrade() -> None:
     op.execute(
         "UPDATE uploaded_documents "
         "SET file_extension = CASE "
-        "WHEN substr(file_name, instr(file_name, '.')) != '' THEN lower(substr(file_name, instr(file_name, '.') + 1)) "
-        "ELSE '.txt' END "
+        "WHEN position('.' IN file_name) > 0 THEN lower(substring(file_name FROM position('.' IN file_name) + 1)) "
+        "ELSE 'txt' END "
         "WHERE file_extension IS NULL"
     )
     # SQLite doesn't have md5(), use a simple hash for now
     op.execute(
         "UPDATE uploaded_documents "
-        "SET checksum = lower(hex(randomblob(32))) "
+        "SET checksum = md5(random()::text) "
         "WHERE checksum IS NULL"
     )
     
