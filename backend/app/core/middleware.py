@@ -35,8 +35,9 @@ class JWTContextMiddleware(BaseHTTPMiddleware):
         request.state.user_id = None
         request.state.client_id = client_identifier(request)
 
-        token = request.cookies.get("access_token")
-        if token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
             try:
                 payload = jwt.decode(
                     token,

@@ -7,12 +7,27 @@ type RetryableAxiosRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
 };
 
+export function getAuthToken() {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("access_token");
+  }
+  return null;
+}
+
 export const apiClient = axios.create({
   baseURL: env.NEXT_PUBLIC_API_BASE_URL,
-  withCredentials: true, // always send httpOnly cookies
+  withCredentials: true, // we can keep this for other cookies if any
   headers: {
     "Content-Type": "application/json"
   }
+});
+
+apiClient.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 let isRefreshing = false;
@@ -43,7 +58,12 @@ apiClient.interceptors.response.use(
         isRefreshing = true;
         refreshPromise = apiClient
           .post("/auth/refresh")
-          .then(() => undefined)
+          .then((res) => {
+             // Refresh returns new token in res.data.access_token
+             if (res.data?.access_token) {
+               localStorage.setItem("access_token", res.data.access_token);
+             }
+          })
           .finally(() => {
             isRefreshing = false;
             refreshPromise = null;
@@ -56,6 +76,7 @@ apiClient.interceptors.response.use(
       isRefreshing = false;
       refreshPromise = null;
       if (typeof window !== "undefined") {
+        localStorage.removeItem("access_token");
         window.dispatchEvent(new Event("auth:expired"));
       }
       return Promise.reject(refreshError);

@@ -19,16 +19,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def set_auth_cookies(response: Response, user: User) -> None:
-    """Set authentication cookies for the user."""
-    access_token = create_access_token(data={"sub": str(user.id)})
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-    )
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
@@ -72,8 +62,13 @@ async def register(
             detail=str(e),
         )
 
-    set_auth_cookies(response, user)
-    return AuthResponse(user=UserRead.model_validate(user), message="Account created.")
+    access_token = create_access_token(data={"sub": str(user.id)})
+    return AuthResponse(
+        user=UserRead.model_validate(user), 
+        access_token=access_token,
+        token_type="bearer",
+        message="Account created."
+    )
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -146,8 +141,13 @@ async def login(
             detail="An error occurred during authentication.",
         )
 
-    set_auth_cookies(response, user)
-    return AuthResponse(user=UserRead.model_validate(user), message="Logged in successfully.")
+    access_token = create_access_token(data={"sub": str(user.id)})
+    return AuthResponse(
+        user=UserRead.model_validate(user), 
+        access_token=access_token,
+        token_type="bearer",
+        message="Logged in successfully."
+    )
 
 
 
@@ -172,12 +172,14 @@ async def refresh(
     Raises:
         HTTPException: If refresh fails due to invalid token
     """
-    access_token = request.cookies.get("access_token")
-    if not access_token:
+    authorization = request.headers.get("Authorization")
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="No access token found.",
         )
+    
+    access_token = authorization.split(" ")[1]
     
     payload = decode_access_token(access_token)
     if not payload or "sub" not in payload:
@@ -194,27 +196,20 @@ async def refresh(
             detail="User not found.",
         )
     
-    set_auth_cookies(response, user)
-    return AuthResponse(user=UserRead.model_validate(user), message="Token refreshed.")
+    new_token = create_access_token(data={"sub": str(user.id)})
+    return AuthResponse(
+        user=UserRead.model_validate(user), 
+        access_token=new_token,
+        token_type="bearer",
+        message="Token refreshed."
+    )
 
 
 @router.post("/logout")
-async def logout(response: Response) -> dict[str, str]:
+async def logout() -> dict[str, str]:
     """
-    Log out the current user by clearing authentication cookies.
-    
-    Args:
-        response: FastAPI response object for clearing cookies
-        
-    Returns:
-        dict: Success message
+    Log out the current user.
     """
-    response.delete_cookie(
-        key="access_token",
-        httponly=True,
-        secure=True,
-        samesite="none",
-    )
     return {"message": "Logged out successfully."}
 
 

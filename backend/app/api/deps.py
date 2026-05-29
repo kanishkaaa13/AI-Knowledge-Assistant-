@@ -12,12 +12,14 @@ def get_current_user(
     request: Request,
     db: Session = Depends(get_db),
 ) -> User:
-    token = request.cookies.get("access_token")
-    if not token:
+    authorization = request.headers.get("Authorization")
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required.",
         )
+    
+    token = authorization.split(" ")[1]
 
     payload = decode_access_token(token)
     if not payload or "sub" not in payload:

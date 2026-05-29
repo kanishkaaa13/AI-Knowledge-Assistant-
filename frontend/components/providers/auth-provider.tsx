@@ -116,6 +116,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginUser = React.useCallback(
     async (values: AuthFormValues, redirectTo = "/dashboard") => {
       const response = await login(values);
+      if (typeof window !== "undefined" && response.access_token) {
+        localStorage.setItem("access_token", response.access_token);
+      }
       setUser(response.user);
       setStatus("authenticated");
       setClientAuthCookie(true);
@@ -130,6 +133,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const registerUser = React.useCallback(
     async (values: AuthFormValues, redirectTo = "/dashboard") => {
       const response = await register(values);
+      if (typeof window !== "undefined" && response.access_token) {
+        localStorage.setItem("access_token", response.access_token);
+      }
       setUser(response.user);
       setStatus("authenticated");
       setClientAuthCookie(true);

@@ -26,4 +26,6 @@ class UserLogin(BaseModel):
 
 class AuthResponse(BaseModel):
     user: UserRead
+    access_token: str | None = None
+    token_type: str = "bearer"
     message: str
