@@ -9,7 +9,7 @@ from typing import Any
 
 import chromadb
 from chromadb import PersistentClient
-from sentence_transformers import SentenceTransformer
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
 logger = logging.getLogger(__name__)
 
@@ -54,34 +54,27 @@ class VectorStoreService:
         persist_path.mkdir(parents=True, exist_ok=True)
 
         self.client: PersistentClient = chromadb.PersistentClient(path=str(persist_path))
-        self.model_name = model_name
-        self._embedding_model: SentenceTransformer | None = None
+        self.model_name = "default-onnx-embedding"
+        self._embedding_function = DefaultEmbeddingFunction()
 
     # ------------------------------------------------------------------
     # Embedding model loading — sync and async variants
     # ------------------------------------------------------------------
 
-    def _get_embedding_model_sync(self) -> SentenceTransformer:
-        """Load (or return cached) embedding model synchronously.
+    def _get_embedding_model_sync(self):
+        """Pre-warm the embedding function."""
+        logger.info("Loading chromadb default embedding function (sync)…")
+        # Trigger model download/load by embedding a dummy string
+        self._embedding_function(["warmup"])
+        logger.info("Embedding function loaded.")
+        return self._embedding_function
 
-        Safe to call from regular (blocking) code paths such as document
-        upload post-processing or the threadpool inside ``similarity_search``.
-        """
-        if self._embedding_model is None:
-            logger.info("Loading sentence-transformer model '%s' (sync)…", self.model_name)
-            self._embedding_model = SentenceTransformer(self.model_name)
-            logger.info("Embedding model loaded.")
-        return self._embedding_model
-
-    async def _get_embedding_model_async(self) -> SentenceTransformer:
+    async def _get_embedding_model_async(self):
         """Load (or return cached) embedding model without blocking the event loop."""
-        if self._embedding_model is None:
-            logger.info("Loading sentence-transformer model '%s' (async)…", self.model_name)
-            self._embedding_model = await asyncio.to_thread(
-                SentenceTransformer, self.model_name
-            )
-            logger.info("Embedding model loaded.")
-        return self._embedding_model
+        logger.info("Loading chromadb default embedding function (async)…")
+        await asyncio.to_thread(self._embedding_function, ["warmup"])
+        logger.info("Embedding function loaded.")
+        return self._embedding_function
 
     # ------------------------------------------------------------------
     # Collection helpers
@@ -91,7 +84,10 @@ class VectorStoreService:
         return f"user_collection_{user_id}"
 
     def _get_or_create_collection(self, user_id: uuid.UUID):
-        return self.client.get_or_create_collection(name=self._collection_name(user_id))
+        return self.client.get_or_create_collection(
+            name=self._collection_name(user_id),
+            embedding_function=self._embedding_function
+        )
 
     # ------------------------------------------------------------------
     # Write operations (synchronous — called from upload/ingestion paths)
@@ -112,7 +108,7 @@ class VectorStoreService:
             return
 
         print(f"[INDEX DEBUG] Loading embedding model: {self.model_name}")
-        model = self._get_embedding_model_sync()
+        self._get_embedding_model_sync()
         print(f"[INDEX DEBUG] Embedding model loaded OK")
 
         collection = self._get_or_create_collection(user_id)
@@ -138,14 +134,7 @@ class VectorStoreService:
 
         print(f"[INDEX DEBUG] Metadata stored on chunks: {metadatas[:1]}")
         print(f"[INDEX DEBUG] Total chunks to store: {len(ids)}")
-        print(f"[INDEX DEBUG] Generating embeddings for {len(documents)} chunks...")
-
-        try:
-            embeddings = model.encode(documents, show_progress_bar=False).tolist()
-            print(f"[INDEX DEBUG] Embeddings generated OK. Shape: {len(embeddings)} x {len(embeddings[0]) if embeddings else 0}")
-        except Exception as e:
-            print(f"[INDEX DEBUG] EMBEDDING FAILED: {e}")
-            raise
+        print(f"[INDEX DEBUG] Generating embeddings and upserting {len(documents)} chunks...")
 
         print(f"[INDEX] Collection: {collection.name}")
         if metadatas:
@@ -157,7 +146,6 @@ class VectorStoreService:
                 ids=ids,
                 documents=documents,
                 metadatas=metadatas,
-                embeddings=embeddings,
             )
         except Exception as e:
             print(f"[INDEX DEBUG] CHROMA UPSERT FAILED: {e}")
@@ -228,7 +216,7 @@ class VectorStoreService:
     ) -> list[VectorSearchResult]:
         """Semantic similarity search — async, non-blocking."""
 
-        def _search_sync(model: SentenceTransformer) -> list[VectorSearchResult]:
+        def _search_sync() -> list[VectorSearchResult]:
             collection = self._get_or_create_collection(user_id)
 
             # Verify the collection has data
@@ -241,8 +229,6 @@ class VectorStoreService:
                 print(f"[RAG] Collection is EMPTY — documents may not have been indexed yet")
                 logger.debug("Collection for user %s is empty.", user_id)
                 return []
-
-            query_embedding = model.encode(query, show_progress_bar=False).tolist()
 
             where_clause: dict = {"user_id": str(user_id)}
             if document_ids:
@@ -261,7 +247,6 @@ class VectorStoreService:
                         ]
                     }
 
-            print(f"[RAG 3] Query embedding shape: {len(query_embedding)}")
             print(f"[QUERY] Filter used: {where_clause}")
 
             # Clamp n_results to the actual collection size
@@ -269,7 +254,7 @@ class VectorStoreService:
 
             try:
                 results = collection.query(
-                    query_embeddings=[query_embedding],
+                    query_texts=[query],
                     n_results=n_results,
                     where=where_clause,
                     include=["documents", "metadatas", "distances"],
@@ -280,7 +265,7 @@ class VectorStoreService:
                 try:
                     print(f"[RAG] Retrying without document_id filter...")
                     results = collection.query(
-                        query_embeddings=[query_embedding],
+                        query_texts=[query],
                         n_results=n_results,
                         where={"user_id": str(user_id)},
                         include=["documents", "metadatas", "distances"],
@@ -313,8 +298,15 @@ class VectorStoreService:
                 )
             return formatted
 
-        model = await self._get_embedding_model_async()
-        return await asyncio.to_thread(_search_sync, model)
+        try:
+            await self._get_embedding_model_async()
+            return await asyncio.to_thread(_search_sync)
+        except Exception as e:
+            logger.error("Similarity search failed: %s", e)
+            print(f"[RAG] CRITICAL ERROR IN SIMILARITY SEARCH: {e}")
+            import traceback
+            print(traceback.format_exc())
+            return []
 
     # Kept for API compatibility — delegates to similarity_search
     async def hybrid_similarity_search(
