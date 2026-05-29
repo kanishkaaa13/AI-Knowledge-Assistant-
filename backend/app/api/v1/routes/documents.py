@@ -238,7 +238,7 @@ async def reindex_document(
     try:
         chunks = RAGIngestionService(db).index_document(document)
         print(f"[REINDEX] Storing {len(chunks)} chunks for doc {document_id}")
-        print(f"[REINDEX] Complete ✓")
+        print(f"[REINDEX] Complete [OK]")
     except Exception as e:
         import traceback
         print(f"[REINDEX ERROR] {traceback.format_exc()}")

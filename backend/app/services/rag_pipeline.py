@@ -130,13 +130,14 @@ class RAGIngestionService:
         try:
             print(f"[INDEX] Upserting {len(vector_records)} vectors into ChromaDB for user {document.user_id}")
             self.vector_store.upsert_vectors(user_id=document.user_id, records=vector_records)
-            print(f"[INDEX] ChromaDB upsert complete ✓")
         except Exception:
-            logger.exception("ChromaDB upsert failed — rolling back chunk records.")
+            logger.exception("ChromaDB upsert failed -- rolling back chunk records.")
             for chunk in created_chunks:
                 self.db.delete(chunk)
             self.db.commit()
             raise
+
+        print(f"[INDEX] ChromaDB upsert complete [OK]")
 
         document.status = "indexed"
         document.processing_error = None
@@ -144,7 +145,7 @@ class RAGIngestionService:
         self.db.commit()
         self.db.refresh(document)
         app_cache.delete_prefix(f"retrieval:{document.user_id}:")
-        print(f"[INDEX] Document {document.id} indexed successfully ({len(created_chunks)} chunks) ✓")
+        print(f"[INDEX] Document {document.id} indexed successfully ({len(created_chunks)} chunks) [OK]")
         return created_chunks
 
     def delete_document_index(self, document_id: uuid.UUID) -> None:
