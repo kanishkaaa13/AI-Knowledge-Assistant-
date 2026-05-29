@@ -32,6 +32,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { ConversationGroup, ConversationPreview } from "@/types/chat";
+import { ProfileDropdown } from "@/components/chat/profile-dropdown";
 
 function formatRelativeTime(timestamp: string) {
   const date = new Date(timestamp);
@@ -403,48 +404,8 @@ export function ChatSidebar({
           padding: '12px 14px',
           borderTop: '1px solid #1a1a1a',
           flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
         }}>
-          {/* Avatar */}
-          <div style={{
-            width: '30px', height: '30px', borderRadius: '50%',
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '12px', fontWeight: 700, color: '#fff', flexShrink: 0,
-          }}>
-            {(user?.name || user?.email || 'K')[0].toUpperCase()}
-          </div>
-          
-          {/* Name + email */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{
-              fontSize: '12px', fontWeight: 500, color: '#d1d1d1',
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            }}>
-              {user?.name || 'User'}
-            </div>
-            <div style={{
-              fontSize: '10px', color: '#444',
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            }}>
-              {user?.email || ''}
-            </div>
-          </div>
-
-          {/* Settings icon */}
-          <button
-            onClick={() => onOpenSettings?.()}
-            style={{
-              background: 'none', border: 'none', color: '#444',
-              cursor: 'pointer', fontSize: '14px', padding: '4px',
-              borderRadius: '6px', flexShrink: 0,
-            }}
-            title="Settings"
-          >
-            ⚙️
-          </button>
+          <ProfileDropdown onOpenSettings={() => onOpenSettings?.()} />
         </div>
       </aside>
 

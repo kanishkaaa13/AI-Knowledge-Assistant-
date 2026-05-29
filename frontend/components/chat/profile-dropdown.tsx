@@ -24,7 +24,7 @@ export function ProfileDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className="rounded-2xl" variant="secondary">
+        <Button className="w-full justify-start rounded-2xl" variant="secondary">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
             {user?.name?.slice(0, 1).toUpperCase() ?? "A"}
           </span>

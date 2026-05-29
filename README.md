@@ -31,7 +31,7 @@ Built on a robust **RAG (Retrieval-Augmented Generation) + LLM** architecture, t
 
 | Modern SaaS Dashboard | Claude-Style Chat Interface |
 | :---: | :---: |
-| <img src="https://via.placeholder.com/800x450/1e1e2f/ffffff?text=Dashboard+Screenshot" alt="Dashboard" width="100%"/> | <img src="https://via.placeholder.com/800x450/1e1e2f/ffffff?text=Chat+Interface" alt="Chat" width="100%"/> |
+| <img src="./assets/dashboard.png" alt="Dashboard" width="100%"/> | <img src="https://via.placeholder.com/800x450/1e1e2f/ffffff?text=Chat+Interface" alt="Chat" width="100%"/> |
 
 | Analytics & Insights | Document Management |
 | :---: | :---: |
