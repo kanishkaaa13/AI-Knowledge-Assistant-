@@ -27,15 +27,17 @@ Built on a robust **RAG (Retrieval-Augmented Generation) + LLM** architecture, t
 
 ## 📸 Screenshots
 
-> *Add screenshots of your application here*
+### 🏠 Modern SaaS Dashboard
+![Modern SaaS Dashboard](assets/dashboard.png)
 
-| Modern SaaS Dashboard | Claude-Style Chat Interface |
-| :---: | :---: |
-| <img src="./assets/dashboard.png" alt="Dashboard" width="100%"/> | <img src="https://via.placeholder.com/800x450/1e1e2f/ffffff?text=Chat+Interface" alt="Chat" width="100%"/> |
+### 💬 Claude-Style Chat Interface
+![Claude-Style Chat Interface](assets/chat.png)
 
-| Analytics & Insights | Document Management |
-| :---: | :---: |
-| <img src="https://via.placeholder.com/800x450/1e1e2f/ffffff?text=Risk+Analytics" alt="Analytics" width="100%"/> | <img src="https://via.placeholder.com/800x450/1e1e2f/ffffff?text=Document+Upload" alt="Documents" width="100%"/> |
+### 📊 Analytics & Insights
+![Analytics & Insights](assets/analytics.png)
+
+### 📄 Document Management
+![Document Management](assets/documents.png)
 
 ---
 
