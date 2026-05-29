@@ -157,7 +157,7 @@ def create_application() -> FastAPI:
     register_exception_handlers(app)
 
     # Mount static file serving for uploads
-    upload_dir = Path(settings.UPLOAD_DIR)
+    upload_dir = Path(settings.UPLOAD_ROOT_DIR)
     upload_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/uploads", StaticFiles(directory=str(upload_dir)), name="uploads")
 
