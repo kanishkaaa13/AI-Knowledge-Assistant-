@@ -31,7 +31,6 @@ class OllamaLLMService:
 
     async def generate(self, *, prompt: str, model: str) -> str:
         if settings.LLM_PROVIDER == "groq":
-            import httpx
             headers = {
                 "Authorization": f"Bearer {settings.GROQ_API_KEY}",
                 "Content-Type": "application/json"
@@ -105,7 +104,6 @@ class OllamaLLMService:
         ]
 
         if settings.LLM_PROVIDER == "groq":
-            import httpx, json
             headers = {
                 "Authorization": f"Bearer {settings.GROQ_API_KEY}",
                 "Content-Type": "application/json"
