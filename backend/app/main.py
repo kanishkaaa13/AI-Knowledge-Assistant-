@@ -1,5 +1,7 @@
 import logging
 import sys
+import time
+from contextlib import asynccontextmanager
 
 # Force UTF-8 output on Windows (prevents cp1252 UnicodeEncodeError from print statements)
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -19,6 +21,31 @@ from app import models  # noqa: F401
 from app.core.config import settings
 from app.core.middleware import JWTContextMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 from app.core import security
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Pre-warm expensive resources so the first user request is fast."""
+    import asyncio
+
+    # Ensure ChromaDB persist directory exists
+    import os
+    os.makedirs(settings.CHROMA_PERSIST_DIRECTORY, exist_ok=True)
+
+    # Pre-warm the embedding model in a thread so the event loop stays free
+    t0 = time.time()
+    print(f"[STARTUP] Pre-warming embedding model '{settings.EMBEDDING_MODEL_NAME}'...")
+    try:
+        from app.services.vector_store import get_vector_store_service
+        vs = get_vector_store_service()
+        await asyncio.to_thread(vs._get_embedding_model_sync)
+        print(f"[STARTUP] Embedding model ready in {time.time() - t0:.2f}s")
+    except Exception as exc:
+        print(f"[STARTUP] Warning: could not pre-warm embedding model: {exc}")
+
+    yield  # App runs here
+
+    print("[SHUTDOWN] Cleaning up...")
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -43,12 +70,13 @@ def create_application() -> FastAPI:
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    
+
     app = FastAPI(
         title=settings.PROJECT_NAME,
         version="0.1.0",
         docs_url="/docs" if settings.APP_ENV.lower() != "production" else None,
         redoc_url="/redoc" if settings.APP_ENV.lower() != "production" else None,
+        lifespan=lifespan,
     )
 
     app.add_middleware(
@@ -61,7 +89,7 @@ def create_application() -> FastAPI:
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(JWTContextMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
-    
+
     register_exception_handlers(app)
 
     # Mount static file serving for uploads
@@ -82,3 +110,4 @@ def create_application() -> FastAPI:
 
 
 app = create_application()
+
