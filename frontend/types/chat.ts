@@ -27,7 +27,7 @@ export interface ConversationDetail extends ConversationPreview {
 
 export interface AssistantSettings {
   theme: "light" | "dark" | "system";
-  model: "llama3" | "mistral";
+  model: string;
   webSearch: boolean;
   streamResponses: boolean;
 }

@@ -183,7 +183,7 @@ export async function queryAssistant(payload: {
 }
 
 export async function summarizeAssistantKnowledge(payload: {
-  query: string;
+  query?: string | null;
   model: string;
   document_ids?: string[];
 }) {
@@ -192,7 +192,7 @@ export async function summarizeAssistantKnowledge(payload: {
 }
 
 export async function generateAssistantQuiz(payload: {
-  query: string;
+  query?: string | null;
   model: string;
   document_ids?: string[];
 }) {
@@ -202,7 +202,7 @@ export async function generateAssistantQuiz(payload: {
 
 export async function getSuggestedPrompts(payload: {
   query: string;
-  model: "llama3" | "mistral";
+  model: string;
   document_ids?: string[];
 }) {
   const { data } = await apiClient.post<SuggestedPromptsResponse>("/assistant/suggested-prompts", payload);
@@ -210,8 +210,8 @@ export async function getSuggestedPrompts(payload: {
 }
 
 export async function semanticDocumentSearch(payload: {
-  query: string;
-  model: "llama3" | "mistral";
+  query?: string | null;
+  model: string;
   document_ids?: string[];
 }) {
   const { data } = await apiClient.post<{ results: SemanticDocumentSearchItem[] }>(

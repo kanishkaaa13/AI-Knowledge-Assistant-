@@ -151,7 +151,7 @@ export function useChat() {
     if (isCurrentlyStreaming) return null; // Don't recompute during stream
     return (
       input.trim() ||
-      activeConversation?.messages.findLast((m) => !m.isStreaming)?.content ||
+      [...(activeConversation?.messages || [])].reverse().find((m) => !m.isStreaming)?.content ||
       activeConversation?.summary ||
       "Summarize my selected documents"
     );

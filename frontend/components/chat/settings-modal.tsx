@@ -7,7 +7,13 @@ import { X } from "lucide-react";
 
 import type { AssistantSettings } from "@/types/chat";
 
-const models: AssistantSettings["model"][] = ["llama3.2:3b", "deepseek-r1:7b", "llama3", "mistral"];
+const models: AssistantSettings["model"][] = [
+  "llama3.2:3b",
+  "llama3", 
+  "mistral",
+  "deepseek-r1:7b",
+  "deepseek-r1:1.5b"
+];
 
 export function SettingsModal({
   onOpenChange,
