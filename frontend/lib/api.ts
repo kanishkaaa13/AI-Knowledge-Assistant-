@@ -81,6 +81,9 @@ export async function uploadDocument(
   formData.append("file", file);
 
   const { data } = await apiClient.post<UploadedDocument>("/documents/upload", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data"
+    },
     onUploadProgress(progressEvent) {
       if (!progressEvent.total || !onProgress) {
         return;
