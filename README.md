@@ -1,262 +1,216 @@
-# AI Knowledge Assistant
+<div align="center">
+  
+# 🧠 AI Knowledge Assistant
 
-Full-stack AI Knowledge Assistant with persistent chat memory, document RAG, and local AI inference. Deployed to production using Vercel (frontend) and Render (backend).
+[![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![AI Powered](https://img.shields.io/badge/AI_Powered-8A2BE2?style=for-the-badge&logo=openai&logoColor=white)](#)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://choosealicense.com/licenses/mit/)
 
-## Tech Stack
+**An AI-powered personal knowledge workspace designed to supercharge your productivity.**
 
-- Frontend: Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui, Axios, React Query
-- Backend: FastAPI, PostgreSQL, SQLAlchemy, fastapi-jwt-auth
-- AI: Ollama (local LLM), Sentence Transformers, ChromaDB
-- Deployment: Vercel (frontend), Render (backend & database)
+[**View Live Demo**](#live-demo) • [**Report a Bug**](https://github.com/kanishkaaa13/AI-Knowledge-Assistant-/issues) • [**Request a Feature**](https://github.com/kanishkaaa13/AI-Knowledge-Assistant-/issues)
 
-## Project Structure
+</div>
+
+---
+
+## 📖 Introduction
+
+**AI Knowledge Assistant** is a modern, enterprise-grade personal knowledge workspace. It allows users to seamlessly upload documents, chat with their personalized AI assistant, search across their entire conversation history, generate summaries, and even create dynamic quizzes. 
+
+Built on a robust **RAG (Retrieval-Augmented Generation) + LLM** architecture, this platform combines real-time token streaming with persistent memory to deliver a seamless, Claude-inspired conversational experience. 
+
+---
+
+## 📸 Screenshots
+
+> *Add screenshots of your application here*
+
+| Modern SaaS Dashboard | Claude-Style Chat Interface |
+| :---: | :---: |
+| <img src="https://via.placeholder.com/800x450/1e1e2f/ffffff?text=Dashboard+Screenshot" alt="Dashboard" width="100%"/> | <img src="https://via.placeholder.com/800x450/1e1e2f/ffffff?text=Chat+Interface" alt="Chat" width="100%"/> |
+
+| Analytics & Insights | Document Management |
+| :---: | :---: |
+| <img src="https://via.placeholder.com/800x450/1e1e2f/ffffff?text=Risk+Analytics" alt="Analytics" width="100%"/> | <img src="https://via.placeholder.com/800x450/1e1e2f/ffffff?text=Document+Upload" alt="Documents" width="100%"/> |
+
+---
+
+## ✨ Core Features
+
+* **🧠 Persistent Conversation Memory:** Context-aware conversations that remember your past interactions.
+* **💬 AI-Powered Document Chat:** Talk directly to your documents (PDF/DOCX/TXT/Markdown) to extract insights instantly.
+* **🔍 Semantic Knowledge Search:** Vector-based retrieval to search across your entire uploaded knowledge base.
+* **⚡ Real-Time Streaming AI:** Ultra-low latency responses with real-time token streaming.
+* **📋 Smart Summaries & Quizzes:** Automatically generate document summaries and interactive quizzes to test your knowledge.
+* **🎨 Modern SaaS Interface:** A beautiful, responsive UI featuring white cards, Inter font, and a premium purple accent theme.
+* **🔐 Secure Authentication:** Enterprise-grade security with JWT authentication and protected routing.
+* **📊 Analytics Dashboard:** Interactive charts (via Recharts), risk analytics visualizations, and role-based views (Student/Admin).
+* **🎯 Goal Tracking:** Built-in weekly goals and progress tracking.
+* **🤖 AI Counselor Support:** Built-in chatbot support tailored for guidance and personalized assistance.
+
+---
+
+## 🛠 Tech Stack
+
+Our stack is carefully curated for scale, speed, and modern developer experience.
+
+| Category | Technology |
+| :--- | :--- |
+| **Frontend** | Next.js, React, Tailwind CSS, TypeScript, Recharts, Framer Motion |
+| **Backend** | FastAPI, Python, SQLAlchemy, PostgreSQL / SQLite, JWT, Server-Sent Events (SSE) |
+| **AI / Machine Learning** | LangChain, Ollama, Vector Embeddings, RAG Pipeline, Semantic Search |
+| **Deployment** | Vercel (Frontend), Render (Backend), Docker |
+
+---
+
+## 🏗 System Architecture
+
+### 🧠 AI RAG Architecture
+
+Our RAG (Retrieval-Augmented Generation) pipeline ensures the LLM is grounded in your private data.
 
 ```text
-AI-Knowledge Assistant/
-├── .env.example
-├── .gitignore
-├── package.json
-├── README.md
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   └── v1/
-│   │   │       ├── routes/
-│   │   │       │   ├── auth.py
-│   │   │       │   ├── assistant.py
-│   │   │       │   └── health.py
-│   │   │       └── router.py
-│   │   ├── api/
-│   │   │   └── deps.py
-│   │   ├── core/
-│   │   │   ├── config.py
-│   │   │   ├── middleware.py
-│   │   │   └── security.py
-│   │   ├── db/
-│   │   │   ├── base.py
-│   │   │   └── session.py
-│   │   ├── main.py
-│   │   ├── models/
-│   │   │   └── user.py
-│   │   ├── schemas/
-│   │   │   ├── assistant.py
-│   │   │   └── auth.py
-│   │   └── services/
-│   │       └── auth.py
-│   └── requirements.txt
-└── frontend/
-    ├── app/
-    │   ├── (auth)/
-    │   │   ├── login/
-    │   │   │   └── page.tsx
-    │   │   └── register/
-    │   │       └── page.tsx
-    │   ├── (app)/
-    │   │   ├── dashboard/
-    │   │   │   └── page.tsx
-    │   │   └── layout.tsx
-    │   ├── globals.css
-    │   ├── layout.tsx
-    │   ├── loading.tsx
-    │   └── page.tsx
-    ├── components/
-    │   ├── auth/
-    │   ├── layout/
-    │   ├── providers/
-    │   └── ui/
-    ├── hooks/
-    ├── lib/
-    │   └── validations/
-    ├── public/
-    ├── types/
-    ├── components.json
-    ├── middleware.ts
-    ├── next.config.ts
-    ├── next-env.d.ts
-    ├── package.json
-    ├── postcss.config.js
-    ├── tailwind.config.ts
-    └── tsconfig.json
+[User Upload] ──> [Document Parsing] ──> [Text Chunking]
+                                               │
+                                               ▼
+[LLM Context Injection] <── [Vector DB] <── [Embedding Generation]
+        │
+        ▼
+[Streaming Response] ──> [Persistent Conversation Memory]
 ```
 
-## Setup
+1. **Document Upload Pipeline:** Extracts text from PDFs, DOCX, TXT, and Markdown files.
+2. **Embedding Generation:** Converts text chunks into high-dimensional vector representations.
+3. **Vector Database Retrieval:** Performs semantic similarity search against user queries.
+4. **RAG Context Injection:** Feeds the most relevant chunks into the LLM prompt.
+5. **Streaming LLM Responses:** Returns tokens in real-time for zero perceived latency.
 
-### 1. Create environment files
+### ⚡ Streaming Chat Architecture
 
-Copy the root example values into:
+Real-time streaming provides a snappy, native feel similar to Claude or ChatGPT.
 
-- `frontend/.env.local`
-- `backend/.env`
+* **SSE Endpoint:** FastAPI streams tokens via Server-Sent Events.
+* **Frontend Rendering:** `ReadableStream` consumes the event stream chunk-by-chunk.
+* **Typing Indicator System:** Dynamic UI updates as tokens arrive, providing immediate visual feedback.
 
-Frontend needs:
+### 🔐 Authentication Flow
 
-```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+* **JWT Authentication:** Cryptographically secure stateless tokens.
+* **Secure Storage:** Tokens are securely stored and managed on the frontend.
+* **Protected Routes:** Next.js middleware guards private dashboards.
+* **Session Persistence:** Seamless token refresh flows prevent unexpected logouts.
+
+---
+
+## 📂 Folder Structure
+
+```text
+📦 AI-Knowledge-Assistant
+├── 📁 frontend/                # Next.js application
+│   ├── 📁 app/                 # App router, pages, layouts
+│   ├── 📁 components/          # Reusable UI, Chat Bubbles, Sidebars
+│   ├── 📁 lib/                 # API clients, utilities
+│   ├── 📁 types/               # TypeScript interfaces
+│   └── 📄 package.json
+└── 📁 backend/                 # FastAPI application
+    ├── 📁 app/                 
+    │   ├── 📁 api/             # Routers, endpoints, deps
+    │   ├── 📁 core/            # Config, security, middleware
+    │   ├── 📁 models/          # SQLAlchemy ORM models
+    │   └── 📁 services/        # AI orchestration, Vector Store
+    ├── 📁 uploads/             # Local document storage
+    ├── 📄 requirements.txt
+    └── 📄 main.py              # Application entrypoint
 ```
 
-Backend needs:
+---
 
-```env
-PROJECT_NAME=AI Knowledge Assistant
-APP_ENV=development
-API_V1_PREFIX=/api/v1
-DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/ai_knowledge_assistant
-JWT_SECRET_KEY=change-me-in-production
-JWT_ACCESS_TOKEN_EXPIRES_MINUTES=30
-JWT_REFRESH_TOKEN_EXPIRES_DAYS=7
-UPLOAD_ROOT_DIR=storage/uploads
-MAX_UPLOAD_SIZE_BYTES=10485760
-CHROMA_PERSIST_DIRECTORY=storage/chroma
-CHROMA_COLLECTION_NAME=knowledge_chunks
-EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
-RAG_CHUNK_SIZE=500
-RAG_CHUNK_OVERLAP=50
-RAG_TOP_K=4
-LLM_PROVIDER=openai
-LLM_MODEL_NAME=gpt-4.1-mini
-LLM_API_KEY=
-LLM_BASE_URL=
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_DEFAULT_MODEL=deepseek-r1:7b
-OLLAMA_KEEP_ALIVE=5m
-BACKEND_CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
-```
+## 🌐 API Endpoints
 
-### 2. Start PostgreSQL
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/auth/login` | Authenticate user and return JWT tokens |
+| `POST` | `/auth/register` | Create a new account |
+| `POST` | `/chat/stream` | Stream AI response (SSE) |
+| `GET` | `/chat/history` | Retrieve persistent conversation memory |
+| `POST` | `/documents/upload`| Process and embed documents into Vector DB |
+| `POST` | `/search` | Perform semantic search on the knowledge base |
+| `POST` | `/summary` | Generate an AI summary of a specific document |
+| `POST` | `/quiz` | Generate interactive questions from document context |
+| `GET` | `/analytics` | Retrieve metrics for the admin/user dashboard |
 
-Create a PostgreSQL database named `ai_knowledge_assistant` and update `DATABASE_URL` if your credentials or port differ.
+---
 
-### 3. Start Ollama and pull local models
+## 🚀 Quick Start
 
-Run: ollama pull deepseek-r1:7b before starting the backend
-
+### 1. Clone the Repository
 ```bash
-ollama serve
-ollama pull deepseek-r1:7b
+git clone https://github.com/kanishkaaa13/AI-Knowledge-Assistant-.git
+cd AI-Knowledge-Assistant-
 ```
 
-### 4. Install frontend dependencies
+### 2. Backend Setup (FastAPI)
+```bash
+cd backend
+python -m venv venv
 
+# Windows
+venv\Scripts\activate
+# Mac/Linux
+source venv/bin/activate
+
+pip install -r requirements.txt
+
+# Create your .env file
+cp .env.example .env
+
+# Start the server
+uvicorn app.main:app --reload --port 8000
+```
+
+### 3. Frontend Setup (Next.js)
 ```bash
 cd frontend
 npm install
-```
 
-### 5. Install backend dependencies
+# Create your .env.local file
+cp .env.example .env.local
 
-```bash
-cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### 6. Run the development servers
-
-Frontend:
-
-```bash
-cd frontend
+# Start the development server
 npm run dev
 ```
 
-Backend:
+Your frontend will now be running on `http://localhost:3000` and the backend on `http://localhost:8000`.
 
-```bash
-cd backend
-alembic upgrade head
-uvicorn app.main:app --reload
-```
+---
 
-Optional root shortcuts:
+## 🔮 Future Improvements
 
-```bash
-npm run frontend:dev
-npm run frontend:lint
-```
+We are constantly evolving to stay at the cutting edge of AI SaaS features:
+* [ ] **Multi-model AI support:** Toggle between Claude, GPT-4, and local open-source models.
+* [ ] **Voice Assistant:** Native speech-to-text and text-to-speech interaction.
+* [ ] **Advanced OCR:** Extract text from scanned PDFs and images seamlessly.
+* [ ] **Team Collaboration:** Shared workspaces and document repositories.
+* [ ] **AI Autonomous Agents:** Agents that execute multi-step web research.
+* [ ] **Knowledge Graphs:** Visual mappings of how your documents interlink.
 
-## Included Features
+---
 
-- Responsive landing page
-- Dashboard layout with sidebar
-- Dark mode using `next-themes`
-- Login and register pages with validated forms
-- Protected frontend routes plus logout flow
-- Toast notifications for auth feedback
-- ChatGPT-style chat interface with sidebar and conversation history
-- Markdown rendering, code blocks, copy actions, and streaming UI
-- Responsive mobile chat layout with profile dropdown and settings modal
-- Tailwind CSS with design tokens
-- Reusable UI primitives inspired by shadcn/ui
-- Axios API client
-- React Query provider and dashboard hook
-- FastAPI application factory
-- JWT auth with access and refresh cookies
-- Bcrypt password hashing
-- SQLAlchemy models with Alembic-managed migrations
-- Secure document uploads with local per-user storage
-- Drag-and-drop document manager with progress, preview, and delete
-- LangChain + Sentence Transformers + ChromaDB RAG pipeline
-- Semantic retrieval, top-k context assembly, and prompt templating
-- Per-user ChromaDB collections with vector metadata and hybrid retrieval
-- Ollama local LLM chat generation with `deepseek-r1:7b`, `llama3`, and `mistral`
-- Streaming grounded answers in the chat UI with markdown rendering
-- Environment variable management for frontend and backend
-- PostgreSQL-ready SQLAlchemy session setup
+## 📜 License
 
-## Architecture Notes
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-- Authentication and API scaffolding: [backend/app](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/app)
-- Phase 3 database design and ER explanation: [backend/PHASE3_DATABASE_ARCHITECTURE.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE3_DATABASE_ARCHITECTURE.md)
-- Phase 6 RAG architecture: [backend/PHASE6_RAG_ARCHITECTURE.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE6_RAG_ARCHITECTURE.md)
-- Phase 7 vector store architecture: [backend/PHASE7_VECTORSTORE_ARCHITECTURE.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE7_VECTORSTORE_ARCHITECTURE.md)
-- Phase 9 chat memory architecture: [backend/PHASE9_CHAT_MEMORY_ARCHITECTURE.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE9_CHAT_MEMORY_ARCHITECTURE.md)
-- Phase 10-11 security and analytics: [backend/PHASE10_11_SECURITY_ANALYTICS.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE10_11_SECURITY_ANALYTICS.md)
-- Phase 12-13 advanced features and optimization: [backend/PHASE12_13_ADVANCED_FEATURES_OPTIMIZATION.md](/C:/Users/Kanishka/Desktop/AI-Knowledge%20Assistant/backend/PHASE12_13_ADVANCED_FEATURES_OPTIMIZATION.md)
+---
 
-## Additional Documentation
+## 👨‍💻 Author
 
-- [Deployment Guide](DEPLOYMENT.md) - Complete production deployment instructions
-- [Production Checklist](PRODUCTION_CHECKLIST.md) - Pre-deployment verification checklist
-- [Scalability Recommendations](SCALABILITY.md) - Scaling strategies for production
+**Kanishka Shailendra Arde**
+* **GitHub:** [@kanishkaaa13](https://github.com/kanishkaaa13)
 
-## Deployment
-
-### Quick Start (Development)
-
-See the [Setup](#setup) section below for local development.
-
-### Production Deployment
-
-For production deployment, follow the complete [Deployment Guide](DEPLOYMENT.md).
-
-**Quick Overview:**
-
-1. **Backend (Render)**
-   - Push code to GitHub
-   - Connect repository to Render
-   - Render auto-detects `render.yaml`
-   - Configure environment variables
-   - Run database migrations via Render Shell
-
-2. **Frontend (Vercel)**
-   - Connect repository to Vercel
-   - Select `frontend` directory
-   - Configure `NEXT_PUBLIC_API_BASE_URL` environment variable
-   - Deploy
-
-3. **Post-Deployment**
-   - Update backend CORS with frontend URL
-   - Configure Ollama (local or cloud)
-   - Run production checklist: [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md)
-
-**Production URLs:**
-- Frontend: Vercel provides URL (e.g., `https://your-app.vercel.app`)
-- Backend: Render provides URL (e.g., `https://your-backend.onrender.com`)
-- Database: Render PostgreSQL (managed)
-
-**Cost Estimates:**
-- Free tier: $0/month (first 90 days), then ~$7/month
-- Production: ~$52/month (Vercel Pro + Render Standard + PostgreSQL)
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
+<div align="center">
+  <i>Built with ❤️ for the future of personal knowledge management.</i>
+</div>
