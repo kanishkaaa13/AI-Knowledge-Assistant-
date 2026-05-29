@@ -133,6 +133,19 @@ def create_application() -> FastAPI:
     async def health_check() -> dict[str, str]:
         return {"status": "healthy", "environment": settings.APP_ENV}
 
+    from fastapi import Request
+    @app.get("/cors-test")
+    async def cors_test(request: Request):
+        return JSONResponse(
+            content={"origin_received": request.headers.get("origin", "none")},
+            headers={
+                "Access-Control-Allow-Origin": request.headers.get(
+                    "origin", "https://ai-knowledge-app-3.vercel.app"
+                ),
+                "Access-Control-Allow-Credentials": "true",
+            }
+        )
+
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
     return app
 
