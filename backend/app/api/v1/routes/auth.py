@@ -188,45 +188,71 @@ async def refresh(
     Raises:
         HTTPException: If refresh fails due to invalid token
     """
-    authorization = request.headers.get("Authorization")
-    if not authorization or not authorization.startswith("Bearer "):
+    try:
+        # Check cookie first
+        token = request.cookies.get("access_token")
+        
+        # Fallback to Authorization header
+        if not token:
+            authorization = request.headers.get("Authorization")
+            if authorization and authorization.startswith("Bearer "):
+                token = authorization.split(" ")[1]
+                
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No access token found.",
+            )
+        
+        payload = decode_access_token(token)
+        if not payload or "sub" not in payload:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid access token.",
+            )
+        
+        user_id = payload["sub"]
+        
+        # Try parsing UUID and query db
+        try:
+            import uuid
+            user_uuid = uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid subject identifier.",
+            )
+            
+        user = db.get(User, user_uuid)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found.",
+            )
+        
+        new_token = create_access_token(data={"sub": str(user.id)})
+        response.set_cookie(
+            key="access_token",
+            value=new_token,
+            httponly=True,
+            secure=True,
+            samesite="none",
+            max_age=86400,
+        )
+        return AuthResponse(
+            user=UserRead.model_validate(user), 
+            access_token=new_token,
+            token_type="bearer",
+            message="Token refreshed."
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Refresh error: Exact exception raised during token refresh: %s", str(e))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No access token found.",
+            detail="Authentication failed.",
         )
-    
-    access_token = authorization.split(" ")[1]
-    
-    payload = decode_access_token(access_token)
-    if not payload or "sub" not in payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid access token.",
-        )
-    
-    user_id = payload["sub"]
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found.",
-        )
-    
-    new_token = create_access_token(data={"sub": str(user.id)})
-    response.set_cookie(
-        key="access_token",
-        value=new_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        max_age=86400,
-    )
-    return AuthResponse(
-        user=UserRead.model_validate(user), 
-        access_token=new_token,
-        token_type="bearer",
-        message="Token refreshed."
-    )
 
 
 @router.post("/logout")
