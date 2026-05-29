@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_MAX_REQUESTS: int = 120
     RATE_LIMIT_AUTH_MAX_REQUESTS: int = 20
     RATE_LIMIT_UPLOAD_MAX_REQUESTS: int = 20
-    UPLOAD_DIR: str = os.getenv(
+    UPLOAD_ROOT_DIR: str = os.getenv(
         "UPLOAD_DIR",
         "/opt/render/project/src/uploads"
     )
