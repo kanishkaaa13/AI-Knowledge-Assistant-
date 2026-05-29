@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.v1.router import api_router
 from app import models  # noqa: F401
 from app.core.config import settings
-from app.core.middleware import JWTContextMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
+from app.core.middleware import CORSFallbackMiddleware, JWTContextMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 from app.core import security
 
 
@@ -117,6 +117,7 @@ def create_application() -> FastAPI:
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(JWTContextMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(CORSFallbackMiddleware)
     
     register_exception_handlers(app)
 

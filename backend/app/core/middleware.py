@@ -71,3 +71,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             user_id=getattr(request.state, "user_id", None),
         )
         return await call_next(request)
+
+
+class CORSFallbackMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        origin = request.headers.get("origin", "")
+        allowed = [
+            "http://localhost:3000",
+            "https://ai-knowledge-app-3.vercel.app",
+            "https://ai-knowledge-app-3-git-main-kanishkaarde99-4507s-projects.vercel.app",
+        ]
+        if origin in allowed:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response
