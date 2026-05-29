@@ -28,7 +28,8 @@ Built on a robust **RAG (Retrieval-Augmented Generation) + LLM** architecture, t
 ## 📸 Screenshots
 
 ### 🏠 Modern SaaS Dashboard
-![Modern SaaS Dashboard](assets/dashboard.png)
+![Modern SaaS Dashboard](<img width="1701" height="966" alt="image" src="https://github.com/user-attachments/assets/da270a69-9c7c-4163-b72e-e47b4c4374b7" />
+)
 
 ### 💬 Claude-Style Chat Interface
 ![Claude-Style Chat Interface](assets/chat.png)
