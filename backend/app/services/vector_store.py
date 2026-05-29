@@ -226,14 +226,7 @@ class VectorStoreService:
         top_k: int = 4,
         document_ids: list[str] | None = None,
     ) -> list[VectorSearchResult]:
-        """Semantic similarity search -- async, non-blocking."""
-        import time
-
-        # Step 5: Minimum query length guard (skip trivial queries)
-        if len(query.strip()) < 3:
-            return []
-
-        t_total = time.time()
+        """Semantic similarity search — async, non-blocking."""
 
         def _search_sync(model: SentenceTransformer) -> list[VectorSearchResult]:
             collection = self._get_or_create_collection(user_id)
@@ -245,15 +238,11 @@ class VectorStoreService:
             print(f"[RAG] ChromaDB collection '{self._collection_name(user_id)}' has {count} total vectors")
 
             if count == 0:
-                print(f"[RAG] Collection is EMPTY -- documents may not have been indexed yet")
+                print(f"[RAG] Collection is EMPTY — documents may not have been indexed yet")
                 logger.debug("Collection for user %s is empty.", user_id)
                 return []
 
-            # ── Step 1: Embedding ──────────────────────────────────────────
-            t0 = time.time()
             query_embedding = model.encode(query, show_progress_bar=False).tolist()
-            t1 = time.time()
-            print(f"[SEARCH PERF] Embedding took: {t1 - t0:.3f}s")
 
             where_clause: dict = {"user_id": str(user_id)}
             if document_ids:
@@ -275,11 +264,9 @@ class VectorStoreService:
             print(f"[RAG 3] Query embedding shape: {len(query_embedding)}")
             print(f"[QUERY] Filter used: {where_clause}")
 
-            # Step 4: Cap n_results to keep ChromaDB fast
-            n_results = min(top_k, count, 5)
+            # Clamp n_results to the actual collection size
+            n_results = min(top_k, count)
 
-            # ── Step 2: ChromaDB query ──────────────────────────────────────
-            t2 = time.time()
             try:
                 results = collection.query(
                     query_embeddings=[query_embedding],
@@ -289,6 +276,7 @@ class VectorStoreService:
                 )
             except Exception as e:
                 print(f"[RAG] ChromaDB query FAILED: {e}")
+                # If filter caused error, try without filter as fallback
                 try:
                     print(f"[RAG] Retrying without document_id filter...")
                     results = collection.query(
@@ -301,10 +289,7 @@ class VectorStoreService:
                 except Exception as e2:
                     print(f"[RAG] Fallback query also FAILED: {e2}")
                     return []
-            t3 = time.time()
-            print(f"[SEARCH PERF] ChromaDB query took: {t3 - t2:.3f}s")
 
-            # ── Step 3: Post-processing ─────────────────────────────────────
             ids_list = results.get("ids", [[]])[0]
             docs_list = results.get("documents", [[]])[0]
             meta_list = results.get("metadatas", [[]])[0]
@@ -326,15 +311,10 @@ class VectorStoreService:
                         semantic_score=semantic_score,
                     )
                 )
-            t4 = time.time()
-            print(f"[SEARCH PERF] Post-processing took: {t4 - t3:.3f}s")
-            print(f"[SEARCH PERF] Total (inside thread): {t4 - t0:.3f}s")
             return formatted
 
         model = await self._get_embedding_model_async()
-        result = await asyncio.to_thread(_search_sync, model)
-        print(f"[SEARCH PERF] Total (including async overhead): {time.time() - t_total:.3f}s")
-        return result
+        return await asyncio.to_thread(_search_sync, model)
 
     # Kept for API compatibility — delegates to similarity_search
     async def hybrid_similarity_search(

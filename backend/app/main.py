@@ -1,7 +1,5 @@
 import logging
 import sys
-import time
-from contextlib import asynccontextmanager
 
 # Force UTF-8 output on Windows (prevents cp1252 UnicodeEncodeError from print statements)
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -21,31 +19,6 @@ from app import models  # noqa: F401
 from app.core.config import settings
 from app.core.middleware import JWTContextMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 from app.core import security
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Pre-warm expensive resources so the first user request is fast."""
-    import asyncio
-
-    # Ensure ChromaDB persist directory exists
-    import os
-    os.makedirs(settings.CHROMA_PERSIST_DIRECTORY, exist_ok=True)
-
-    # Pre-warm the embedding model in a thread so the event loop stays free
-    t0 = time.time()
-    print(f"[STARTUP] Pre-warming embedding model '{settings.EMBEDDING_MODEL_NAME}'...")
-    try:
-        from app.services.vector_store import get_vector_store_service
-        vs = get_vector_store_service()
-        await asyncio.to_thread(vs._get_embedding_model_sync)
-        print(f"[STARTUP] Embedding model ready in {time.time() - t0:.2f}s")
-    except Exception as exc:
-        print(f"[STARTUP] Warning: could not pre-warm embedding model: {exc}")
-
-    yield  # App runs here
-
-    print("[SHUTDOWN] Cleaning up...")
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -70,6 +43,55 @@ def create_application() -> FastAPI:
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
+    
+    import asyncio
+    import httpx
+    from contextlib import asynccontextmanager
+
+    async def keep_model_warm():
+        while True:
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    await client.post(
+                        "http://localhost:11434/api/generate",
+                        json={
+                            "model": settings.OLLAMA_DEFAULT_MODEL,
+                            "prompt": "hi",
+                            "stream": False,
+                            "keep_alive": "10m"
+                        }
+                    )
+                print("[WARMUP] Model kept warm")
+            except Exception as e:
+                print(f"[WARMUP] Failed: {e}")
+            await asyncio.sleep(240)  # every 4 minutes
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        import time
+        import os
+        from app.services.vector_store import get_vector_store_service
+        
+        # Ensure ChromaDB persist directory exists
+        os.makedirs(settings.CHROMA_PERSIST_DIRECTORY, exist_ok=True)
+
+        # Pre-warm the embedding model in a thread so the event loop stays free
+        t0 = time.time()
+        print(f"[STARTUP] Pre-warming embedding model '{settings.EMBEDDING_MODEL_NAME}'...")
+        try:
+            vs = get_vector_store_service()
+            await asyncio.to_thread(vs._get_embedding_model_sync)
+            print(f"[STARTUP] Embedding model ready in {time.time() - t0:.2f}s")
+        except Exception as exc:
+            print(f"[STARTUP] Warning: could not pre-warm embedding model: {exc}")
+
+        # Start Ollama keep-alive task
+        warmup_task = asyncio.create_task(keep_model_warm())
+        
+        yield  # App runs here
+        
+        print("[SHUTDOWN] Cleaning up...")
+        warmup_task.cancel()
 
     app = FastAPI(
         title=settings.PROJECT_NAME,
@@ -89,7 +111,7 @@ def create_application() -> FastAPI:
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(JWTContextMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
-
+    
     register_exception_handlers(app)
 
     # Mount static file serving for uploads
@@ -110,4 +132,3 @@ def create_application() -> FastAPI:
 
 
 app = create_application()
-

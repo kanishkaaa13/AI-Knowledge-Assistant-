@@ -35,7 +35,9 @@ export function LoginForm() {
     try {
       await loginUser(values, redirectTo);
     } catch (error: any) {
-      const detail = error?.response?.data?.detail;
+      let detail = error?.response?.data?.detail 
+        || (error instanceof Error ? error.message : null) 
+        || (typeof error === "string" ? error : null);
       let message = "Unable to log in.";
 
       if (detail === "User not found") {
@@ -44,8 +46,8 @@ export function LoginForm() {
         message = "Incorrect password";
       } else if (detail === "Account inactive") {
         message = "Account inactive";
-      } else if (typeof detail === "string") {
-        message = detail;
+      } else if (detail) {
+        message = typeof detail === "string" ? detail : JSON.stringify(detail);
       }
 
       setError("password", { type: "server", message });

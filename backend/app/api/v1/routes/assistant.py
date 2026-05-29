@@ -321,20 +321,12 @@ async def semantic_document_search(
     apply_rate_limit(request, scope="assistant-document-search", limit=30, user_id=str(current_user.id))
     safe_query = ensure_present(sanitize_text(payload.query, max_length=4000), field_name="query")
 
-    # Step 5: Skip trivial queries early -- no need to load model or hit ChromaDB
-    if len(safe_query.strip()) < 3:
-        return SemanticDocumentSearchResponse(results=[])
-
-    import time
-    t0 = time.time()
-
     vector_store = get_vector_store_service()
     search_results = await vector_store.similarity_search(
         user_id=current_user.id,
         query=safe_query,
-        top_k=5,  # Step 4: cap at 5 for performance
+        top_k=8,
     )
-    print(f"[SEARCH PERF] similarity_search total: {time.time() - t0:.3f}s")
 
     seen: set[str] = set()
     results: list[SemanticDocumentSearchItem] = []

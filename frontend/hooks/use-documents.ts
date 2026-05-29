@@ -46,7 +46,15 @@ export function useUploadDocument() {
       toast.success("Document uploaded and indexed.");
     },
     onError(error: any) {
-      toast.error(error?.response?.data?.detail ?? "Upload failed.");
+      const detail = error?.response?.data?.detail 
+        || (error instanceof Error ? error.message : null) 
+        || (typeof error === "string" ? error : null);
+      
+      const message = detail 
+        ? (typeof detail === "string" ? detail : JSON.stringify(detail)) 
+        : "Upload failed.";
+        
+      toast.error(message);
     }
   });
 }
@@ -61,7 +69,15 @@ export function useDeleteDocument() {
       toast.success("Document deleted.");
     },
     onError(error: any) {
-      toast.error(error?.response?.data?.detail ?? "Unable to delete document.");
+      const detail = error?.response?.data?.detail 
+        || (error instanceof Error ? error.message : null) 
+        || (typeof error === "string" ? error : null);
+      
+      const message = detail 
+        ? (typeof detail === "string" ? detail : JSON.stringify(detail)) 
+        : "Unable to delete document.";
+        
+      toast.error(message);
     }
   });
 }

@@ -534,12 +534,15 @@ export function useChat() {
 
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
     } catch (error: any) {
-      let errorMessage = error?.response?.data?.detail || error?.message || "An unexpected error occurred";
-      if (typeof errorMessage !== "string") {
-        errorMessage = JSON.stringify(errorMessage);
-      }
-      updateAssistantMessage(() => `⚠️ Error: ${errorMessage}`, true);
-      toast.error("An error occurred. Check the chat for details.");
+      const errorMessage = error?.response?.data?.detail 
+        || (error instanceof Error ? error.message : null)
+        || (typeof error === "string" ? error : null)
+        || "An unexpected error occurred";
+        
+      const finalMessage = typeof errorMessage !== "string" ? JSON.stringify(errorMessage) : errorMessage;
+      
+      updateAssistantMessage(() => `⚠️ Error: ${finalMessage}`, true);
+      toast.error(finalMessage);
     }
   }, [
     activeConversationId,

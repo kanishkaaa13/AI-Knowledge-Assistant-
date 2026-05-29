@@ -30,7 +30,15 @@ export function RegisterForm() {
     try {
       await registerUser(values);
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail ?? "Unable to create your account.");
+      const detail = error?.response?.data?.detail 
+        || (error instanceof Error ? error.message : null) 
+        || (typeof error === "string" ? error : null);
+      
+      const message = detail 
+        ? (typeof detail === "string" ? detail : JSON.stringify(detail)) 
+        : "Unable to create your account.";
+        
+      toast.error(message);
     }
   };
 
