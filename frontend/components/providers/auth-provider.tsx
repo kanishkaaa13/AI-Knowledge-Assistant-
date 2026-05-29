@@ -58,43 +58,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // First try to get the current user directly (works if access_token cookie is valid)
+      // First try to get the current user directly (works if access_token is valid)
       const currentUser = await getCurrentUser();
       setUser(currentUser);
       setStatus("authenticated");
       setClientAuthCookie(true);
     } catch (firstError: any) {
-      // If 401, try refreshing the session
-      const is401 = firstError?.response?.status === 401;
+      const statusCode = firstError?.response?.status;
+      const is401 = statusCode === 401;
+      const isNetworkOrServer = !statusCode || statusCode >= 500;
+
       if (is401) {
+        // Token may be expired — try refreshing
         try {
-          await refreshSession();
+          const refreshData = await refreshSession();
+          if (typeof window !== "undefined" && refreshData.access_token) {
+            localStorage.setItem("access_token", refreshData.access_token);
+          }
           const currentUser = await getCurrentUser();
           setUser(currentUser);
           setStatus("authenticated");
           setClientAuthCookie(true);
         } catch {
-          // Both failed — clear auth state
+          // Both failed — clear auth state and redirect
           setUser(null);
           setStatus("unauthenticated");
           setClientAuthCookie(false);
           if (typeof window !== "undefined") {
-            localStorage.clear();
-            document.cookie.split(";").forEach((c) => {
-              document.cookie = c
-                .replace(/^ +/, "")
-                .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-            });
+            localStorage.removeItem("access_token");
+          }
+          if (pathname !== "/login" && pathname !== "/register") {
+            router.replace("/login");
           }
         }
-      } else {
-        // Non-auth error — still mark as unauthenticated
+      } else if (isNetworkOrServer) {
+        // Network error or 5xx — backend may be down (cold start).
+        // Treat as unauthenticated and redirect to login.
         setUser(null);
         setStatus("unauthenticated");
         setClientAuthCookie(false);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("access_token");
+        }
+        if (pathname !== "/login" && pathname !== "/register") {
+          router.replace("/login");
+        }
+      } else {
+        // Other non-auth error — mark as unauthenticated
+        setUser(null);
+        setStatus("unauthenticated");
+        setClientAuthCookie(false);
+        if (pathname !== "/login" && pathname !== "/register") {
+          router.replace("/login");
+        }
       }
     }
-  }, [pathname]);
+  }, [pathname, router]);
 
   React.useEffect(() => {
     void refreshUser();

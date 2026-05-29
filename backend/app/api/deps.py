@@ -44,7 +44,14 @@ def get_current_user(
             detail="Invalid subject identifier.",
         )
 
-    user = db.get(User, user_uuid)
+    try:
+        user = db.get(User, user_uuid)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}",
+        )
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
