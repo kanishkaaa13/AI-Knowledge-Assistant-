@@ -1,10 +1,15 @@
-from functools import lru_cache
+# backend/app/services/embeddings.py
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
-from langchain_huggingface import HuggingFaceEmbeddings
+_embedding_fn = None
 
-from app.core.config import settings
+def get_embedding_model():
+    global _embedding_fn
+    if _embedding_fn is None:
+        _embedding_fn = DefaultEmbeddingFunction()
+        print("[STARTUP] ChromaDB DefaultEmbeddingFunction loaded")
+    return _embedding_fn
 
-
-@lru_cache
-def get_embedding_model() -> HuggingFaceEmbeddings:
-    return HuggingFaceEmbeddings(model_name=settings.EMBEDDING_MODEL_NAME)
+def get_embedding(texts: list[str]) -> list:
+    model = get_embedding_model()
+    return model(texts)
