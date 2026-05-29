@@ -1,5 +1,6 @@
 import logging
 import sys
+import re
 
 # Force UTF-8 output on Windows (prevents cp1252 UnicodeEncodeError from print statements)
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -19,8 +20,16 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://ai-knowledge-app-3.vercel.app",
     "https://ai-knowledge-app-3-git-main-kanishkaarde99-4507s-projects.vercel.app",
-    "https://ai-knowledge-app-3-ozutp68ne-kanishkaarde99-4507s-projects.vercel.app",
 ]
+
+def is_origin_allowed(origin: str) -> bool:
+    if not origin:
+        return False
+    if origin in ALLOWED_ORIGINS:
+        return True
+    if re.match(r"^https://ai-knowledge-app-3.*\.vercel\.app$", origin):
+        return True
+    return False
 
 from app.api.v1.router import api_router
 from app import models  # noqa: F401
@@ -35,7 +44,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         logging.error(f"Unhandled exception: {exc}", exc_info=True)
         origin = request.headers.get("origin", "")
         headers = {}
-        if origin in ALLOWED_ORIGINS:
+        if is_origin_allowed(origin):
             headers["Access-Control-Allow-Origin"] = origin
             headers["Access-Control-Allow-Credentials"] = "true"
 
@@ -122,7 +131,7 @@ def create_application() -> FastAPI:
     async def cors_aware_http_exception_handler(request: Request, exc: HTTPException):
         origin = request.headers.get("origin", "")
         headers = {}
-        if origin in ALLOWED_ORIGINS:
+        if is_origin_allowed(origin):
             headers["Access-Control-Allow-Origin"] = origin
             headers["Access-Control-Allow-Credentials"] = "true"
         return JSONResponse(
@@ -133,12 +142,8 @@ def create_application() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:3000",
-            "https://ai-knowledge-app-3.vercel.app",
-            "https://ai-knowledge-app-3-git-main-kanishkaarde99-4507s-projects.vercel.app",
-            "https://ai-knowledge-app-3-ozutp68ne-kanishkaarde99-4507s-projects.vercel.app",
-        ],
+        allow_origins=ALLOWED_ORIGINS,
+        allow_origin_regex=r"^https://ai-knowledge-app-3.*\.vercel\.app$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

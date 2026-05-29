@@ -77,13 +77,11 @@ class CORSFallbackMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
         origin = request.headers.get("origin", "")
-        allowed = [
-            "http://localhost:3000",
-            "https://ai-knowledge-app-3.vercel.app",
-            "https://ai-knowledge-app-3-git-main-kanishkaarde99-4507s-projects.vercel.app",
-            "https://ai-knowledge-app-3-ozutp68ne-kanishkaarde99-4507s-projects.vercel.app",
-        ]
-        if origin in allowed:
+        
+        # Check against main app allowed origins
+        from app.main import is_origin_allowed
+        
+        if is_origin_allowed(origin):
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
         return response
