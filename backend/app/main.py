@@ -99,7 +99,7 @@ def create_application() -> FastAPI:
         
         # Ensure ChromaDB persist directory exists
         os.makedirs(settings.CHROMA_PERSIST_DIRECTORY, exist_ok=True)
-        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+        os.makedirs(settings.UPLOAD_ROOT_DIR, exist_ok=True)
 
         # Pre-warm the embedding model in a thread so the event loop stays free
         t0 = time.time()
