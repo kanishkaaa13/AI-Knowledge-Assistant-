@@ -12,49 +12,54 @@ def get_current_user(
     request: Request,
     db: Session = Depends(get_db),
 ) -> User:
-    authorization = request.headers.get("Authorization")
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required.",
-        )
-    
-    token = authorization.split(" ")[1]
-
-    payload = decode_access_token(token)
-    if not payload or "sub" not in payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token.",
-        )
-
-    subject = payload["sub"]
-    
-    if getattr(request.state, "user_id", None) and request.state.user_id != subject:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication context mismatch.",
-        )
-
     try:
+        # Check cookie first
+        token = request.cookies.get("access_token")
+        
+        # Fallback to Authorization header
+        if not token:
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
+                
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+            )
+
+        payload = decode_access_token(token)
+        if not payload or "sub" not in payload:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication token.",
+            )
+
+        subject = payload["sub"]
+        
+        if getattr(request.state, "user_id", None) and request.state.user_id != subject:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication context mismatch.",
+            )
+
         user_uuid = uuid.UUID(subject)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid subject identifier.",
-        )
-
-    try:
         user = db.get(User, user_uuid)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error: {str(e)}",
-        )
-
-    if not user:
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found.",
+            )
+            
+        return user
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions directly
+        raise
+    except Exception:
+        # Catch any other parsing/DB errors and return 401 instead of crashing
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found.",
+            detail="Not authenticated",
         )
-    return user
