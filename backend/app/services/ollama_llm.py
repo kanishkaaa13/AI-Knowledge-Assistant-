@@ -30,6 +30,37 @@ class OllamaLLMService:
         return normalized
 
     async def generate(self, *, prompt: str, model: str) -> str:
+        if settings.LLM_PROVIDER == "groq":
+            import httpx
+            headers = {
+                "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": settings.GROQ_MODEL,
+                "messages": [
+                    {"role": "system", "content": "You are a helpful AI assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                "stream": False,
+                "max_tokens": 1024
+            }
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                try:
+                    response = await client.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers=headers,
+                        json=payload
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    return data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                except Exception as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail=f"Unable to reach Groq API: {exc}",
+                    )
+
         selected_model = self._validate_model(model)
         payload = {
             "model": selected_model,
@@ -68,6 +99,43 @@ class OllamaLLMService:
         return data.get("message", {}).get("content", "").strip()
 
     async def stream_generate(self, *, prompt: str, model: str | None = None) -> AsyncIterator[str]:
+        messages = [
+            {"role": "system", "content": "You are a helpful AI assistant."},
+            {"role": "user", "content": prompt}
+        ]
+
+        if settings.LLM_PROVIDER == "groq":
+            import httpx, json
+            headers = {
+                "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": settings.GROQ_MODEL,
+                "messages": messages,
+                "stream": True,
+                "max_tokens": 1024
+            }
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                async with client.stream(
+                    "POST",
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers,
+                    json=payload
+                ) as response:
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            data = line[6:]
+                            if data == "[DONE]": break
+                            try:
+                                chunk = json.loads(data)
+                                token = chunk["choices"][0]["delta"].get("content", "")
+                                if token:
+                                    yield token
+                            except Exception:
+                                continue
+            return
+
         selected_model = self._validate_model(model or settings.OLLAMA_DEFAULT_MODEL)
         url = f"{self.base_url}/api/chat"
         payload = {

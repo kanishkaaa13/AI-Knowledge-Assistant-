@@ -74,6 +74,7 @@ def create_application() -> FastAPI:
         
         # Ensure ChromaDB persist directory exists
         os.makedirs(settings.CHROMA_PERSIST_DIRECTORY, exist_ok=True)
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
         # Pre-warm the embedding model in a thread so the event loop stays free
         t0 = time.time()
@@ -101,9 +102,15 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
     )
 
+    import os
+    origins = [
+        "http://localhost:3000",
+        os.getenv("FRONTEND_URL", "https://your-app.vercel.app")
+    ]
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -115,7 +122,7 @@ def create_application() -> FastAPI:
     register_exception_handlers(app)
 
     # Mount static file serving for uploads
-    upload_dir = Path(settings.UPLOAD_ROOT_DIR)
+    upload_dir = Path(settings.UPLOAD_DIR)
     upload_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/uploads", StaticFiles(directory=str(upload_dir)), name="uploads")
 

@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from urllib.parse import urlparse
 
@@ -28,16 +29,24 @@ class Settings(BaseSettings):
     RATE_LIMIT_MAX_REQUESTS: int = 120
     RATE_LIMIT_AUTH_MAX_REQUESTS: int = 20
     RATE_LIMIT_UPLOAD_MAX_REQUESTS: int = 20
-    UPLOAD_ROOT_DIR: str = "storage/uploads"
+    UPLOAD_DIR: str = os.getenv(
+        "UPLOAD_DIR",
+        "/opt/render/project/src/uploads"
+    )
     MAX_UPLOAD_SIZE_BYTES: int = 10485760
     ALLOWED_UPLOAD_EXTENSIONS: list[str] = [".pdf", ".docx", ".txt", ".md"]
-    CHROMA_PERSIST_DIRECTORY: str = "storage/chroma"
+    CHROMA_PERSIST_DIRECTORY: str = os.getenv(
+        "CHROMA_PERSIST_DIRECTORY", 
+        "/opt/render/project/src/chroma_data"
+    )
     CHROMA_COLLECTION_NAME: str = "knowledge_chunks"
     EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
     RAG_CHUNK_SIZE: int = 500
     RAG_CHUNK_OVERLAP: int = 50
     RAG_TOP_K: int = 4
-    LLM_PROVIDER: str = "ollama"
+    LLM_PROVIDER: str = "groq"
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.1-8b-instant"
     # Supported: "llama3.2:3b" (others can be added in LLM service mapping)
     LLM_MODEL_NAME: str = "llama3.2:3b"
     LLM_API_KEY: str | None = None
@@ -45,7 +54,7 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_DEFAULT_MODEL: str = "llama3.2:3b"
     OLLAMA_KEEP_ALIVE: str = "5m"
-    ENFORCE_LOCAL_ONLY_AI: bool = True
+    ENFORCE_LOCAL_ONLY_AI: bool = False
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
