@@ -46,6 +46,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setStatus("loading");
 
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        setUser(null);
+        setStatus("unauthenticated");
+        setClientAuthCookie(false);
+        router.replace("/login");
+        return;
+      }
+    }
+
     try {
       // First try to get the current user directly (works if access_token cookie is valid)
       const currentUser = await getCurrentUser();

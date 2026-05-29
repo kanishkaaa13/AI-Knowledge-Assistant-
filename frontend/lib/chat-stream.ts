@@ -27,8 +27,8 @@ export async function streamAssistantChat(
       method: "POST",
       credentials: "include", // send httpOnly access_token cookie
       headers: {
-        "Content-Type": "application/json"
-        // No CSRF header — backend uses httpOnly JWT cookies only
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem("access_token") : ""}`
       },
       body: JSON.stringify(payload),
       signal
