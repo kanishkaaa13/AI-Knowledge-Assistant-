@@ -5,7 +5,7 @@ import asyncio
 async def test_all():
     print("Testing All Features...")
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             # Login
             login_resp = await client.post(
                 'http://127.0.0.1:8000/api/v1/auth/login',

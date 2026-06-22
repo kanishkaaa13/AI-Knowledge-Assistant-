@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import AsyncIterator
 from urllib.parse import urlparse
 
@@ -11,6 +12,39 @@ from app.core.config import settings
 
 from dotenv import load_dotenv
 load_dotenv()
+
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+
+async def generate_response(prompt: str) -> str:
+    print(f"[LLM] Sending prompt to {OLLAMA_BASE_URL}/api/generate")
+    print(f"[LLM] Model: {OLLAMA_MODEL}")
+    print(f"[LLM] Prompt preview: {prompt[:100]}")
+
+    try:
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            response = await client.post(
+                f"{OLLAMA_BASE_URL}/api/generate",
+                json={
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
+                    "stream": False
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
+            print(f"[LLM] Success. Response length: {len(data.get('response', ''))}")
+            return data["response"]
+
+    except httpx.ConnectError as e:
+        print(f"[LLM ERROR] Cannot connect to Ollama: {e}")
+        raise Exception("Cannot connect to Ollama at " + OLLAMA_BASE_URL)
+    except httpx.TimeoutException as e:
+        print(f"[LLM ERROR] Ollama timed out: {e}")
+        raise Exception("Ollama request timed out after 300s")
+    except Exception as e:
+        print(f"[LLM ERROR] Unexpected error: {e}")
+        raise
 
 DEFAULT_MODEL = getattr(settings, 'OLLAMA_DEFAULT_MODEL', 'llama3.2:3b')
 SUPPORTED_OLLAMA_MODELS = [DEFAULT_MODEL, "deepseek-r1:1.5b", "deepseek-r1:14b", "llama3", "mistral", "llama3.2:3b"]
@@ -33,63 +67,7 @@ class OllamaLLMService:
         return normalized
 
     async def generate(self, *, prompt: str, model: str) -> str:
-        if settings.LLM_PROVIDER == "groq":
-            headers = {
-                "Authorization": f"Bearer {settings.GROQ_API_KEY}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "model": settings.GROQ_MODEL,
-                "messages": [
-                    {"role": "system", "content": "You are a helpful AI assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                "stream": False,
-                "max_tokens": 1024
-            }
-            async with httpx.AsyncClient(timeout=300.0) as client:
-                try:
-                    response = await client.post(
-                        "https://api.groq.com/openai/v1/chat/completions",
-                        headers=headers,
-                        json=payload
-                    )
-                    response.raise_for_status()
-                    data = response.json()
-                    return data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-                except Exception as exc:
-                    raise HTTPException(
-                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                        detail=f"Unable to reach Groq API: {exc}",
-                    )
-
-        import os
-        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
-        selected_model = os.environ.get("OLLAMA_MODEL", "llama3")
-
-        payload = {
-            "model": selected_model,
-            "prompt": prompt,
-            "stream": False
-        }
-
-        async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
-            try:
-                response = await client.post(f"{base_url}/api/generate", json=payload)
-                if response.status_code == 404:
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"Model {selected_model} not found. Run: ollama pull {selected_model}"
-                    )
-                response.raise_for_status()
-            except Exception as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=f"Unable to reach the local Ollama service. Error: {exc}",
-                ) from exc
-
-        data = response.json()
-        return data.get("response", "").strip()
+        return await generate_response(prompt)
 
     async def stream_generate(self, *, prompt: str, model: str | None = None) -> AsyncIterator[str]:
         messages = [
