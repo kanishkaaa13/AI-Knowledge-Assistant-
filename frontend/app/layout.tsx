@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   description: "Full-stack knowledge assistant starter built with Next.js and FastAPI."
 };
 
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+
 export default function RootLayout({
   children
 }: Readonly<{
@@ -24,7 +26,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <body className={manrope.className}>
-        <AppProviders>{children}</AppProviders>
+        <ErrorBoundary>
+          <AppProviders>{children}</AppProviders>
+        </ErrorBoundary>
       </body>
     </html>
   );
