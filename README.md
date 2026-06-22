@@ -2,14 +2,20 @@
   
 # 🧠 AI Knowledge Assistant
 
-[![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![AI Powered](https://img.shields.io/badge/AI_Powered-8A2BE2?style=for-the-badge&logo=openai&logoColor=white)](#)
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://choosealicense.com/licenses/mit/)
+<p align="center">
 
-**An AI-powered personal knowledge workspace designed to supercharge your productivity.**
+<img src="https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+<img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
+<img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" />
+<img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" />
+<img src="https://img.shields.io/badge/AI-Powered-purple?style=for-the-badge" />
+<img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" />
+
+</p>
+
+<p align="center">
+An AI-powered personal knowledge workspace designed to supercharge your productivity.
+</p>
 
 [**Report a Bug**](https://github.com/kanishkaaa13/AI-Knowledge-Assistant-/issues) • [**Request a Feature**](https://github.com/kanishkaaa13/AI-Knowledge-Assistant-/issues)
 
@@ -27,17 +33,29 @@ Built on a robust **RAG (Retrieval-Augmented Generation) + LLM** architecture, t
 
 ## 📸 Screenshots
 
-### 🏠 Modern SaaS Dashboard
-![Modern SaaS Dashboard](assets/dashboard.png)
+<h3 align="center">🏠 AI Knowledge Assistant</h3>
 
-### 💬 Claude-Style Chat Interface
-![Claude-Style Chat Interface](assets/chat.png)
+<p align="center">
+  <img width="1701" height="966"
+       alt="AI Knowledge Assistant Dashboard"
+       src="https://github.com/user-attachments/assets/da270a69-9c7c-4163-b72e-e47b4c4374b7" />
+</p>
 
-### 📊 Analytics & Insights
-![Analytics & Insights](assets/analytics.png)
+<h3 align="center">📊 Analytics & Insights</h3>
 
-### 📄 Document Management
-![Document Management](assets/documents.png)
+<p align="center">
+  <img width="1396" height="970"
+       alt="Analytics & Insights"
+       src="https://github.com/user-attachments/assets/b2eb8809-9e43-4b73-a668-9ceb23434455" />
+</p>
+
+<h3 align="center">📄 Document Management</h3>
+
+<p align="center">
+  <img width="839" height="892"
+       alt="Document Management"
+       src="https://github.com/user-attachments/assets/bde5d782-43d5-4de6-a92e-116deb1dc22c" />
+</p>
 
 ---
 
