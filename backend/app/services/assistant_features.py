@@ -93,8 +93,8 @@ class AssistantFeatureService:
             for q in questions if isinstance(questions, list) else []:
                 formatted_questions.append({
                     "question": q.get("question", ""),
-                    "options": q.get("options", []),
-                    "correct_answer": q.get("correct_answer", "")
+                    "answer": q.get("answer", ""),
+                    "difficulty": q.get("difficulty", "medium")
                 })
         except json.JSONDecodeError:
             # If JSON parsing fails, return empty array

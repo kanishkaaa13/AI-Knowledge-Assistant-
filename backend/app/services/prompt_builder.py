@@ -39,7 +39,7 @@ QUIZ_PROMPT_TEMPLATE = ChatPromptTemplate.from_template(
 Rules:
 - Use only the given context.
 - Return valid JSON only.
-- Return an array of objects with this exact structure: {{"question":"...","options":["A","B","C","D"],"correct_answer":"A"}}.
+- Return an array of objects with this exact structure: {{"question":"...","answer":"...","difficulty":"easy|medium|hard"}}.
 - Generate exactly {count} items.
 - If the context is insufficient, return [].
 

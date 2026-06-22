@@ -14,14 +14,14 @@ async def test_chat():
             print(f'Login response: {login_resp.text[:200]}')
             
             if login_resp.status_code == 200:
-                cookies = login_resp.cookies
-                print(f'Cookies: {cookies}')
+                token = login_resp.json().get('access_token')
+                print(f'Token: {token[:20]}...')
                 
                 # Now try the chat stream endpoint
                 chat_resp = await client.post(
                     'http://127.0.0.1:8000/api/v1/assistant/chat/stream',
                     json={'query': 'hello', 'model': 'llama3'},
-                    cookies=cookies,
+                    headers={'Authorization': f'Bearer {token}'},
                     timeout=30.0
                 )
                 print(f'Chat status: {chat_resp.status_code}')

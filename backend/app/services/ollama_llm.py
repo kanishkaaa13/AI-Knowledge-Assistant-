@@ -9,6 +9,9 @@ from fastapi import HTTPException, status
 
 from app.core.config import settings
 
+from dotenv import load_dotenv
+load_dotenv()
+
 DEFAULT_MODEL = getattr(settings, 'OLLAMA_DEFAULT_MODEL', 'llama3.2:3b')
 SUPPORTED_OLLAMA_MODELS = [DEFAULT_MODEL, "deepseek-r1:1.5b", "deepseek-r1:14b", "llama3", "mistral", "llama3.2:3b"]
 
@@ -60,42 +63,33 @@ class OllamaLLMService:
                         detail=f"Unable to reach Groq API: {exc}",
                     )
 
-        selected_model = self._validate_model(model)
+        import os
+        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+        selected_model = os.environ.get("OLLAMA_MODEL", "llama3")
+
         payload = {
             "model": selected_model,
-            "messages": [
-                {"role": "system", "content": "You are a helpful AI assistant."},
-                {"role": "user", "content": prompt}
-            ],
-            "stream": False,
-            "options": {
-                "temperature": 0.7,
-                "num_predict": 2048
-            }
+            "prompt": prompt,
+            "stream": False
         }
 
         async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
             try:
-                response = await client.post(f"{self.base_url}/api/chat", json=payload)
+                response = await client.post(f"{base_url}/api/generate", json=payload)
                 if response.status_code == 404:
                     raise HTTPException(
                         status_code=404,
                         detail=f"Model {selected_model} not found. Run: ollama pull {selected_model}"
                     )
                 response.raise_for_status()
-            except httpx.HTTPStatusError as exc:
+            except Exception as exc:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Unable to reach the local Ollama service.",
-                ) from exc
-            except httpx.HTTPError as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Unable to reach the local Ollama service.",
+                    detail=f"Unable to reach the local Ollama service. Error: {exc}",
                 ) from exc
 
         data = response.json()
-        return data.get("message", {}).get("content", "").strip()
+        return data.get("response", "").strip()
 
     async def stream_generate(self, *, prompt: str, model: str | None = None) -> AsyncIterator[str]:
         messages = [
@@ -134,49 +128,32 @@ class OllamaLLMService:
                                 continue
             return
 
-        selected_model = self._validate_model(model or settings.OLLAMA_DEFAULT_MODEL)
-        url = f"{self.base_url}/api/chat"
+        import os
+        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+        selected_model = os.environ.get("OLLAMA_MODEL", "llama3")
+        url = f"{base_url}/api/generate"
         payload = {
             "model": selected_model,
-            "messages": [
-                {"role": "system", "content": "You are a helpful AI assistant."},
-                {"role": "user", "content": prompt}
-            ],
-            "stream": True,
-            "options": {
-                "temperature": 0.7,
-                "num_predict": 2048
-            }
+            "prompt": prompt,
+            "stream": False
         }
 
         print(f"[OLLAMA] POST {url} model={selected_model}")
 
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
-                async with client.stream("POST", url, json=payload) as response:
-                    if response.status_code != 200:
-                        error_text = await response.aread()
-                        raise RuntimeError(f"Ollama returned {response.status_code}: {error_text.decode()}")
+                response = await client.post(url, json=payload)
+                if response.status_code != 200:
+                    raise RuntimeError(f"Ollama returned {response.status_code}: {response.text}")
+                
+                data = response.json()
+                token = data.get("response", "")
+                if token:
+                    print(f"[OLLAMA RESPONSE]: {token!r}")
+                    yield token
+                
+                print("[OLLAMA] Stream complete")
 
-                    async for line in response.aiter_lines():
-                        if not line.strip():
-                            continue
-                        try:
-                            chunk = json.loads(line)
-                            token = chunk.get("message", {}).get("content", "")
-                            done = chunk.get("done", False)
-
-                            if token:
-                                print(f"[OLLAMA TOKEN]: {token!r}")
-                                yield token
-
-                            if done:
-                                print("[OLLAMA] Stream complete")
-                                break
-
-                        except json.JSONDecodeError as e:
-                            print(f"[OLLAMA] JSON parse error: {e}, line: {line!r}")
-                            continue
         except httpx.ConnectError:
             raise RuntimeError("Cannot connect to Ollama. Make sure it is running: ollama serve")
         except httpx.TimeoutException:

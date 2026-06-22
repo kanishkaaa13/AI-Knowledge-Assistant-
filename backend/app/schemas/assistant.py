@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from app.schemas.rag import RetrievedChunk
+from app.schemas.rag import RetrievedChunk, ChatChunk
 from app.core.config import settings
 
 
@@ -62,7 +62,7 @@ class AssistantSummaryRequest(BaseModel):
 class AssistantSummaryResponse(BaseModel):
     summary: str
     context: str
-    chunks: list[RetrievedChunk]
+    chunks: list[ChatChunk]
 
 
 class QuizItem(BaseModel):
@@ -73,13 +73,13 @@ class QuizItem(BaseModel):
 
 class AssistantQuizResponse(BaseModel):
     questions: list[QuizItem]
-    chunks: list[RetrievedChunk]
+    chunks: list[ChatChunk]
     context: str
 
 
 class SuggestedPromptsResponse(BaseModel):
     prompts: list[str]
-    chunks: list[RetrievedChunk]
+    chunks: list[ChatChunk]
 
 
 class SemanticDocumentSearchItem(BaseModel):
