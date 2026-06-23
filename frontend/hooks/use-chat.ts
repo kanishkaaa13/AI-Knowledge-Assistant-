@@ -172,7 +172,15 @@ export function useChat() {
         model: settings.model,
         document_ids: selectedDocumentIds
       });
-      return result.prompts;
+      let prompts = result.prompts;
+      if (typeof prompts === "string") {
+        try {
+          prompts = JSON.parse(prompts);
+        } catch {
+          // Keep as string if parsing fails
+        }
+      }
+      return prompts;
     },
     // Guard: only call when NOT streaming AND we have a reference text
     enabled: Boolean(latestReferenceText) && !isCurrentlyStreaming,
@@ -344,10 +352,26 @@ export function useChat() {
         setGeneratedSummary(data.result.summary);
       }
       if (data.tool === "quiz") {
-        setQuiz(data.result.questions);
+        let quizData = data.result.questions;
+        if (typeof quizData === "string") {
+          try {
+            quizData = JSON.parse(quizData);
+          } catch {
+            // Keep as string if parsing fails
+          }
+        }
+        setQuiz(quizData);
       }
       if (data.tool === "search") {
-        setSearchResults(data.result.results);
+        let searchData = data.result.results;
+        if (typeof searchData === "string") {
+          try {
+            searchData = JSON.parse(searchData);
+          } catch {
+            // Keep as string if parsing fails
+          }
+        }
+        setSearchResults(searchData);
       }
     },
     onError(error: any) {

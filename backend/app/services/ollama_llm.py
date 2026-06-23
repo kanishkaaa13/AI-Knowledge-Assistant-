@@ -21,6 +21,7 @@ async def generate_response(prompt: str) -> str:
     print(f"[LLM] Model: {OLLAMA_MODEL}")
     print(f"[LLM] Prompt preview: {prompt[:100]}")
 
+    print(f"[LLM] Using model: {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=10.0)) as client:
             response = await client.post(

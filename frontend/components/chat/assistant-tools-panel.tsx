@@ -325,7 +325,7 @@ export function AssistantToolsPanel({
                 Suggested Prompts
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                {suggestedPrompts.length > 0 ? (
+                {Array.isArray(suggestedPrompts) && suggestedPrompts.length > 0 ? (
                   suggestedPrompts.map((prompt) => (
                     <button
                       key={prompt}
@@ -336,6 +336,8 @@ export function AssistantToolsPanel({
                       {prompt}
                     </button>
                   ))
+                ) : typeof suggestedPrompts === "string" ? (
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">{suggestedPrompts}</p>
                 ) : (
                   <p className="text-xs text-muted-foreground">Suggested prompts will appear here.</p>
                 )}
@@ -358,7 +360,7 @@ export function AssistantToolsPanel({
                 Semantic Results
               </div>
               <div className="mt-3 space-y-3">
-                {searchResults.length > 0 ? (
+                {Array.isArray(searchResults) && searchResults.length > 0 ? (
                   searchResults.map((item) => (
                     <div key={item.document_id} className="rounded-lg bg-[var(--border-color)] p-3">
                       <p className="text-xs font-medium text-white">{item.title}</p>
@@ -366,6 +368,8 @@ export function AssistantToolsPanel({
                       <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{item.excerpt}</p>
                     </div>
                   ))
+                ) : typeof searchResults === "string" ? (
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">{searchResults}</p>
                 ) : (
                   <p className="text-xs text-muted-foreground">Run semantic document search to inspect top matches.</p>
                 )}
@@ -378,7 +382,7 @@ export function AssistantToolsPanel({
                 Quiz
               </div>
               <div className="mt-3 space-y-3">
-                {quiz.length > 0 ? (
+                {Array.isArray(quiz) && quiz.length > 0 ? (
                   quiz.map((item, index) => (
                     <div key={`${item.question}-${index}`} className="rounded-lg bg-[var(--border-color)] p-3">
                       <p className="text-xs font-medium text-white">{item.question}</p>
@@ -388,6 +392,8 @@ export function AssistantToolsPanel({
                       <p className="mt-2 text-xs text-muted-foreground">{item.answer}</p>
                     </div>
                   ))
+                ) : typeof quiz === "string" ? (
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">{quiz}</p>
                 ) : (
                   <p className="text-xs text-muted-foreground">Generate a quiz from your knowledge base.</p>
                 )}
