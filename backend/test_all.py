@@ -2,13 +2,15 @@ import httpx
 import json
 import asyncio
 
+BASE = "http://127.0.0.1:8001"
+
 async def test_all():
     print("Testing All Features...")
     try:
         async with httpx.AsyncClient(timeout=300.0) as client:
             # Login
             login_resp = await client.post(
-                'http://127.0.0.1:8000/api/v1/auth/login',
+                f'{BASE}/api/v1/auth/login',
                 json={'email': 'kanishkaarde99@gmail.com', 'password': 'test12345'}
             )
             if login_resp.status_code != 200:
@@ -19,7 +21,7 @@ async def test_all():
             headers = {'Authorization': f'Bearer {token}'}
 
             # Get Documents to find Unit 3
-            docs_resp = await client.get('http://127.0.0.1:8000/api/v1/documents', headers=headers)
+            docs_resp = await client.get(f'{BASE}/api/v1/documents', headers=headers)
             docs = docs_resp.json().get('items', [])
             unit3_doc = next((d for d in docs if 'Unit 3' in d.get('title', '') or 'Unit 3' in d.get('filename', '')), None)
             doc_ids = [unit3_doc['id']] if unit3_doc else []
@@ -28,7 +30,7 @@ async def test_all():
             # 1. Chat Feature
             print("\n--- 1. Chat Feature ---")
             chat_resp = await client.post(
-                'http://127.0.0.1:8000/api/v1/assistant/query',
+                f'{BASE}/api/v1/assistant/query',
                 json={'query': 'Hello! How are you?', 'model': 'llama3'},
                 headers=headers
             )
@@ -41,7 +43,7 @@ async def test_all():
             # 2. Summarize Feature
             print("\n--- 2. Summarize Feature ---")
             sum_resp = await client.post(
-                'http://127.0.0.1:8000/api/v1/assistant/summaries',
+                f'{BASE}/api/v1/assistant/summaries',
                 json={'query': 'Summarize Unit 3', 'model': 'llama3', 'document_ids': doc_ids},
                 headers=headers
             )
@@ -54,7 +56,7 @@ async def test_all():
             # 3. Quiz Feature
             print("\n--- 3. Quiz Feature ---")
             quiz_resp = await client.post(
-                'http://127.0.0.1:8000/api/v1/assistant/quiz',
+                f'{BASE}/api/v1/assistant/quiz',
                 json={'query': 'Generate a quiz for Unit 3', 'model': 'llama3', 'document_ids': doc_ids},
                 headers=headers
             )
@@ -70,7 +72,7 @@ async def test_all():
             # 4. Search Feature
             print("\n--- 4. Search Feature ---")
             search_resp = await client.post(
-                'http://127.0.0.1:8000/api/v1/assistant/document-search',
+                f'{BASE}/api/v1/assistant/document-search',
                 json={'query': 'machine learning', 'model': 'llama3'},
                 headers=headers
             )
