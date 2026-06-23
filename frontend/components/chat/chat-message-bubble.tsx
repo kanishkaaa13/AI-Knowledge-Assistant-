@@ -17,7 +17,7 @@ export function ChatMessageBubble({
   userName: string;
 }) {
   const isUser = message.role === "user";
-  const isError = !isUser && (message.content.startsWith('{"detail":') || message.content.startsWith("⚠️ Error:"));
+  const isError = !isUser && typeof message.content === 'string' && (message.content.startsWith('{"detail":') || message.content.startsWith("⚠️ Error:"));
 
   async function copyMessage() {
     await navigator.clipboard.writeText(message.content);

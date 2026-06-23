@@ -519,17 +519,25 @@ export function useChat() {
               const finalId = data.conversation_id || conversationId;
               if (isNewConversation && finalId) {
                 handleNewConversationFinalized(finalId, data.conversation_title, data.answer);
-                updateAssistantMessage(() => data.answer, true, finalId);
+                if (data.answer !== undefined) {
+                  updateAssistantMessage(() => data.answer, true, finalId);
+                } else {
+                  updateAssistantMessage((current) => current, true, finalId);
+                }
               } else {
                 updateConversationCache(conversationId!, (current) => ({
                   ...(current as ConversationDetail),
                   title: data.conversation_title ?? current?.title ?? "New conversation",
-                  summary: data.answer,
-                  lastMessagePreview: data.answer,
+                  summary: data.answer ?? current?.summary,
+                  lastMessagePreview: data.answer ?? current?.lastMessagePreview,
                   updatedAt: new Date().toISOString(),
                   messageCount: current?.messageCount ?? 0
                 }));
-                updateAssistantMessage(() => data.answer, true, conversationId!);
+                if (data.answer !== undefined) {
+                  updateAssistantMessage(() => data.answer, true, conversationId!);
+                } else {
+                  updateAssistantMessage((current) => current, true, conversationId!);
+                }
               }
             },
             onError(message) {
