@@ -76,7 +76,7 @@ def create_application() -> FastAPI:
     async def keep_model_warm():
         while True:
             try:
-                async with httpx.AsyncClient(timeout=120) as client:
+                async with httpx.AsyncClient(timeout=30) as client:
                     await client.post(
                         "http://localhost:11434/api/generate",
                         json={
@@ -88,8 +88,8 @@ def create_application() -> FastAPI:
                     )
                 print("[WARMUP] Model kept warm")
             except Exception as e:
-                print(f"[WARMUP] Failed: {e}")
-            await asyncio.sleep(240)  # every 4 minutes
+                print(f"[WARMUP] Ollama not ready yet: {e}")
+            await asyncio.sleep(60)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

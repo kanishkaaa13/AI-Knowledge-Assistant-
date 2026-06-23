@@ -48,11 +48,11 @@ async def _ensure_ollama_running() -> None:
         async with httpx.AsyncClient(timeout=3.0) as client:
             res = await client.get(settings.OLLAMA_BASE_URL)
             res.raise_for_status()
-    except Exception as e:
-        logger.error(f"[OLLAMA REAL ERROR]: {e}")
+    except Exception as exc:
+        print(f"[CHAT ERROR] {exc}")
         raise HTTPException(
-            status_code=503, 
-            detail="Ollama service is not running. Start it with: ollama serve"
+            status_code=503,
+            detail=f"Cannot connect to Ollama: {exc}"
         )
 
 
