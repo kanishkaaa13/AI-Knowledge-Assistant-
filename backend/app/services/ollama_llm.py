@@ -22,7 +22,7 @@ async def generate_response(prompt: str) -> str:
     print(f"[LLM] Prompt preview: {prompt[:100]}")
 
     try:
-        async with httpx.AsyncClient(timeout=300.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=10.0)) as client:
             response = await client.post(
                 f"{OLLAMA_BASE_URL}/api/generate",
                 json={
@@ -119,7 +119,7 @@ class OllamaLLMService:
         print(f"[OLLAMA] POST {url} model={selected_model}")
 
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=10.0)) as client:
                 response = await client.post(url, json=payload)
                 if response.status_code != 200:
                     raise RuntimeError(f"Ollama returned {response.status_code}: {response.text}")
