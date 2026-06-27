@@ -308,7 +308,7 @@ class VectorStoreService:
             print(traceback.format_exc())
             return []
 
-    # Kept for API compatibility — delegates to similarity_search
+    # Performs a hybrid semantic + keyword search with Reciprocal Rank Fusion (RRF)
     async def hybrid_similarity_search(
         self,
         user_id: uuid.UUID,
@@ -316,8 +316,121 @@ class VectorStoreService:
         top_k: int = 4,
         document_ids: list[str] | None = None,
     ) -> list[VectorSearchResult]:
-        """Hybrid search (currently pure semantic; BM25 not yet integrated)."""
-        return await self.similarity_search(user_id, query, top_k, document_ids)
+        """Hybrid search combining semantic search and keyword search using Reciprocal Rank Fusion (RRF)."""
+        import re
+        from sqlalchemy import select, or_
+        from app.db.session import db_manager
+        from app.models.document_chunk import DocumentChunk
+        from app.models.uploaded_document import UploadedDocument
+
+        # Tokenize query to terms
+        stop_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by", "of", "is", "are", "was", "were", "be", "been", "this", "that", "it", "he", "she", "they", "we", "you"}
+        words = [re.sub(r'[^a-zA-Z0-9]', '', w).lower() for w in query.split()]
+        terms = [w for w in words if w and w not in stop_words]
+        if not terms and words:
+            terms = [w for w in words if w]
+
+        sql_results = []
+        if terms:
+            try:
+                with db_manager.session_factory() as session:
+                    conditions = []
+                    for term in terms:
+                        conditions.append(DocumentChunk.content.ilike(f"%{term}%"))
+
+                    stmt = select(DocumentChunk).join(UploadedDocument).where(
+                        UploadedDocument.user_id == user_id
+                    )
+
+                    if document_ids:
+                        stmt = stmt.where(UploadedDocument.id.in_([uuid.UUID(d) for d in document_ids if d]))
+
+                    stmt = stmt.where(or_(*conditions)).limit(50)
+                    db_chunks = session.scalars(stmt).all()
+
+                    for chunk in db_chunks:
+                        matches = 0
+                        content_lower = chunk.content.lower()
+                        for term in terms:
+                            matches += content_lower.count(term)
+
+                        sql_results.append({
+                            "chunk_id": str(chunk.id),
+                            "document_id": str(chunk.document_id),
+                            "filename": chunk.document.file_name,
+                            "title": chunk.document.title,
+                            "page": chunk.page_number,
+                            "content": chunk.content,
+                            "chunk_index": chunk.chunk_index,
+                            "score": matches
+                        })
+                    sql_results.sort(key=lambda x: x["score"], reverse=True)
+            except Exception as e:
+                logger.error("SQL keyword search failed in hybrid search: %s", e)
+
+        # Get semantic results
+        semantic_results = await self.similarity_search(user_id, query, top_k=top_k * 3, document_ids=document_ids)
+
+        # Apply Reciprocal Rank Fusion (RRF)
+        rrf_scores = {}
+        chunk_data_map = {}
+
+        for rank, res in enumerate(semantic_results, start=1):
+            doc_id = str(res.metadata.get("document_id", ""))
+            chunk_idx = int(res.metadata.get("chunk_index", 0))
+            key = (doc_id, chunk_idx)
+
+            chunk_data_map[key] = {
+                "id": res.id,
+                "document": res.document,
+                "metadata": res.metadata,
+                "semantic_score": res.semantic_score,
+                "keyword_score": 0.0
+            }
+            rrf_scores[key] = rrf_scores.get(key, 0.0) + (1.0 / (60.0 + rank))
+
+        for rank, res in enumerate(sql_results, start=1):
+            doc_id = res["document_id"]
+            chunk_idx = res["chunk_index"]
+            key = (doc_id, chunk_idx)
+
+            if key not in chunk_data_map:
+                chunk_data_map[key] = {
+                    "id": res["chunk_id"],
+                    "document": res["content"],
+                    "metadata": {
+                        "document_id": doc_id,
+                        "filename": res["filename"],
+                        "document_title": res["title"],
+                        "page": res["page"],
+                        "chunk_index": chunk_idx
+                    },
+                    "semantic_score": 0.0,
+                    "keyword_score": float(res["score"])
+                }
+            else:
+                chunk_data_map[key]["keyword_score"] = float(res["score"])
+
+            rrf_scores[key] = rrf_scores.get(key, 0.0) + (1.0 / (60.0 + rank))
+
+        sorted_keys = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)
+
+        final_results = []
+        for key in sorted_keys[:top_k]:
+            data = chunk_data_map[key]
+            # Normalize keyword score to a reasonable range
+            k_score = min(data["keyword_score"], 10.0) / 10.0
+            final_results.append(
+                VectorSearchResult(
+                    id=data["id"],
+                    document=data["document"],
+                    metadata=data["metadata"],
+                    distance=0.0,
+                    semantic_score=data["semantic_score"],
+                    keyword_score=k_score
+                )
+            )
+        return final_results
 
     async def semantic_similarity_search(
         self,

@@ -179,3 +179,65 @@ export interface SemanticDocumentSearchItem {
   score: number;
   tags: string[];
 }
+
+export interface Note {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  is_pinned: boolean;
+  tags: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteCreate {
+  title: string;
+  content?: string;
+  is_pinned?: boolean;
+  tags?: string | null;
+}
+
+export interface NoteUpdate {
+  title?: string;
+  content?: string;
+  is_pinned?: boolean;
+  tags?: string | null;
+}
+
+export interface Flashcard {
+  id: string;
+  user_id: string;
+  document_id: string | null;
+  front: string;
+  back: string;
+  difficulty: "easy" | "medium" | "hard";
+  tags: string | null;
+  source_context: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FlashcardCreate {
+  front: string;
+  back: string;
+  difficulty?: "easy" | "medium" | "hard";
+  tags?: string | null;
+  source_context?: string | null;
+  document_id?: string | null;
+}
+
+export interface FlashcardUpdate {
+  front?: string;
+  back?: string;
+  difficulty?: "easy" | "medium" | "hard";
+  tags?: string | null;
+  source_context?: string | null;
+}
+
+export interface FlashcardGenerateRequest {
+  query?: string;
+  document_ids: string[];
+  count: number;
+  model?: string;
+}

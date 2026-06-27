@@ -38,7 +38,15 @@ class ConversationRepository(BaseRepository[Conversation]):
         )
         return self.db.scalar(statement)
 
-    def search_by_user(self, user_id: uuid.UUID, query: str | None = None) -> list[Conversation]:
+    def search_by_user(
+        self,
+        user_id: uuid.UUID,
+        query: str | None = None,
+        *,
+        is_favorite: bool | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> list[Conversation]:
         statement = select(Conversation).where(Conversation.user_id == user_id)
         if query:
             pattern = f"%{query.strip()}%"
@@ -49,6 +57,12 @@ class ConversationRepository(BaseRepository[Conversation]):
                     Conversation.messages.any(Message.content.ilike(pattern)),
                 )
             )
+        if is_favorite is not None:
+            statement = statement.where(Conversation.is_favorite == is_favorite)
+        if date_from:
+            statement = statement.where(Conversation.updated_at >= date_from)
+        if date_to:
+            statement = statement.where(Conversation.updated_at <= date_to)
 
         statement = statement.order_by(Conversation.is_favorite.desc(), Conversation.updated_at.desc())
         return list(self.db.scalars(statement).all())

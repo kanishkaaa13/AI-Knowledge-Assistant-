@@ -14,7 +14,14 @@ import {
   SemanticDocumentSearchItem,
   SuggestedPromptsResponse,
   UploadedDocument,
-  User
+  User,
+  Note,
+  NoteCreate,
+  NoteUpdate,
+  Flashcard,
+  FlashcardCreate,
+  FlashcardUpdate,
+  FlashcardGenerateRequest
 } from "@/types/api";
 import type { RetrievedChunk } from "@/types/rag";
 
@@ -213,8 +220,8 @@ export async function getSuggestedPrompts(payload: {
 }
 
 export async function semanticDocumentSearch(payload: {
-  query?: string | null;
-  model: string;
+  query: string;
+  model: "llama3" | "mistral";
   document_ids?: string[];
 }) {
   const { data } = await apiClient.post<{ results: SemanticDocumentSearchItem[] }>(
@@ -222,4 +229,67 @@ export async function semanticDocumentSearch(payload: {
     payload
   );
   return data;
+}
+
+// ==========================================
+// NOTES API
+// ==========================================
+
+export async function listNotes(params?: { search?: string; pinned_only?: boolean }) {
+  const { data } = await apiClient.get<Note[]>("/notes", { params });
+  return data;
+}
+
+export async function createNote(payload: NoteCreate) {
+  const { data } = await apiClient.post<Note>("/notes", payload);
+  return data;
+}
+
+export async function getNote(noteId: string) {
+  const { data } = await apiClient.get<Note>(`/notes/${noteId}`);
+  return data;
+}
+
+export async function updateNote(noteId: string, payload: NoteUpdate) {
+  const { data } = await apiClient.patch<Note>(`/notes/${noteId}`, payload);
+  return data;
+}
+
+export async function deleteNote(noteId: string) {
+  await apiClient.delete(`/notes/${noteId}`);
+}
+
+export async function togglePinNote(noteId: string) {
+  const { data } = await apiClient.post<Note>(`/notes/${noteId}/pin`);
+  return data;
+}
+
+// ==========================================
+// FLASHCARDS API
+// ==========================================
+
+export async function listFlashcards(documentId?: string) {
+  const { data } = await apiClient.get<Flashcard[]>("/flashcards", {
+    params: documentId ? { document_id: documentId } : undefined
+  });
+  return data;
+}
+
+export async function createFlashcard(payload: FlashcardCreate) {
+  const { data } = await apiClient.post<Flashcard>("/flashcards", payload);
+  return data;
+}
+
+export async function generateFlashcards(payload: FlashcardGenerateRequest) {
+  const { data } = await apiClient.post<Flashcard[]>("/flashcards/generate", payload);
+  return data;
+}
+
+export async function updateFlashcard(cardId: string, payload: FlashcardUpdate) {
+  const { data } = await apiClient.patch<Flashcard>(`/flashcards/${cardId}`, payload);
+  return data;
+}
+
+export async function deleteFlashcard(cardId: string) {
+  await apiClient.delete(`/flashcards/${cardId}`);
 }

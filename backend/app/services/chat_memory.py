@@ -21,8 +21,25 @@ class ChatMemoryService:
         self.conversations = ConversationRepository(db)
         self.messages = MessageRepository(db)
 
-    def list_conversations(self, *, user: User, search: str | None = None) -> list[ConversationListItem]:
-        items = self.conversations.search_by_user(user.id, search)
+    def list_conversations(
+        self,
+        *,
+        user: User,
+        search: str | None = None,
+        is_favorite: bool | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> list[ConversationListItem]:
+        from datetime import datetime
+        d_from = datetime.fromisoformat(date_from) if date_from else None
+        d_to = datetime.fromisoformat(date_to) if date_to else None
+        items = self.conversations.search_by_user(
+            user.id,
+            search,
+            is_favorite=is_favorite,
+            date_from=d_from,
+            date_to=d_to,
+        )
         return [self._build_list_item(conversation) for conversation in items]
 
     def get_conversation(self, *, user: User, conversation_id: uuid.UUID) -> ConversationDetail:

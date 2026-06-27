@@ -12,6 +12,7 @@ export interface StreamPayload {
 export interface StreamHandlers {
   onContext?: (data: any) => void;
   onToken?: (token: string) => void;
+  onSuggestions?: (prompts: string[]) => void;
   onDone?: (data: any) => void;
   onError?: (message: string) => void;
 }
@@ -81,6 +82,9 @@ export async function streamAssistantChat(
             break;
           case "token":
             handlers.onToken?.(data.content ?? "");
+            break;
+          case "suggestions":
+            handlers.onSuggestions?.(data.prompts ?? []);
             break;
           case "done":
             handlers.onDone?.(data);

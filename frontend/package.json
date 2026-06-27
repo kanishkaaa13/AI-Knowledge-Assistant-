@@ -27,6 +27,7 @@
     "react-dom": "latest",
     "react-hook-form": "latest",
     "react-markdown": "^10.1.0",
+    "react-pdf": "^10.4.1",
     "recharts": "latest",
     "rehype-highlight": "latest",
     "shadcn": "^4.8.0",

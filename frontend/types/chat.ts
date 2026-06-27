@@ -1,5 +1,14 @@
 export type ChatRole = "user" | "assistant" | "system";
 
+export interface Citation {
+  chunk_id?: string;
+  document_id: string;
+  filename: string;
+  page: number;
+  chunk_index: number;
+  content: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: ChatRole;
@@ -7,6 +16,8 @@ export interface ChatMessage {
   createdAt: string;
   sequenceNumber?: number;
   isStreaming?: boolean;
+  citations?: Citation[];
+  suggestions?: string[];
 }
 
 export interface ConversationPreview {

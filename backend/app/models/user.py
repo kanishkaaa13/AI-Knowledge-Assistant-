@@ -29,3 +29,14 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         passive_deletes=True,
         uselist=False,
     )
+    notes: Mapped[list["Note"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    flashcards: Mapped[list["Flashcard"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+

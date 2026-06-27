@@ -48,7 +48,7 @@ class AssistantChatService:
         else:
             # Retrieve context from ChromaDB
             try:
-                search_results = await self.vector_store.similarity_search(
+                search_results = await self.vector_store.hybrid_similarity_search(
                     user_id=user.id,
                     query=query,
                     top_k=top_k,
@@ -72,7 +72,12 @@ class AssistantChatService:
                 context = ""
                 chunks = []
             else:
-                context = "\n\n".join([r.document for r in search_results])
+                context_sections = []
+                for r in search_results:
+                    filename = r.metadata.get("filename", "Unknown Document")
+                    page = r.metadata.get("page", 1)
+                    context_sections.append(f"[Source: {filename}, Page {page}]\n{r.document}")
+                context = "\n\n".join(context_sections)
                 prompt = build_rag_prompt(query=query, context=context)
 
         try:
@@ -147,7 +152,7 @@ class AssistantChatService:
 
         try:
             print(f"[STREAM] Running RAG retrieval...")
-            search_results = await self.vector_store.similarity_search(
+            search_results = await self.vector_store.hybrid_similarity_search(
                 user_id=user_id,
                 query=query,
                 top_k=top_k,
@@ -161,7 +166,13 @@ class AssistantChatService:
             search_results = []
 
         if search_results:
-            context = "\n\n".join([r.document for r in search_results])
+            # Format context with explicit source titles and page numbers for the LLM
+            context_sections = []
+            for r in search_results:
+                filename = r.metadata.get("filename", "Unknown Document")
+                page = r.metadata.get("page", 1)
+                context_sections.append(f"[Source: {filename}, Page {page}]\n{r.document}")
+            context = "\n\n".join(context_sections)
             chunks = _format_chunks(search_results)
 
         print(f"[RAG 4] ChromaDB raw results: {[{'id': r.id, 'score': r.semantic_score, 'meta': r.metadata} for r in search_results]}")
@@ -172,12 +183,7 @@ class AssistantChatService:
 
         # ── Step 6: Build prompt exactly as specified ──────────────────────
         if context:
-            prompt = (
-                f"Use the following document content to answer:\n\n"
-                f"{context}\n\n"
-                f"Question: {query}\n"
-                f"Answer based on the documents above."
-            )
+            prompt = build_rag_prompt(query=query, context=context)
         else:
             prompt = (
                 f"Answer from general knowledge. "
@@ -207,4 +213,31 @@ class AssistantChatService:
             return
 
         final = full_answer.strip() or "I was unable to generate a response. Please try again."
-        yield f"data: {json.dumps({'type': 'done', 'answer': final, 'prompt': prompt})}\n\n"
+
+        # Asynchronously generate context-aware follow-up suggestions
+        suggestions = []
+        try:
+            from app.services.prompt_builder import build_suggested_prompts_prompt
+            s_prompt = build_suggested_prompts_prompt(query="", context=final)
+            s_raw = await self.ollama_service.generate(prompt=s_prompt, model=model)
+            suggestions = [
+                line.strip("- ").strip("0123456789. ")
+                for line in s_raw.splitlines()
+                if line.strip() and not line.startswith("[") and not line.startswith("data:")
+            ]
+            suggestions = [s for s in suggestions if s][:5]
+        except Exception as e:
+            print(f"[STREAM] Follow-up generation failed: {e}")
+            suggestions = [
+                "Explain this with an example",
+                "Summarize the key takeaways",
+                "Show some sample questions on this",
+                "Explain it simply",
+                "What are the main concepts here?"
+            ]
+
+        # Send suggestions event
+        yield f"data: {json.dumps({'type': 'suggestions', 'prompts': suggestions})}\n\n"
+
+        # Send final done event with suggestions included
+        yield f"data: {json.dumps({'type': 'done', 'answer': final, 'prompt': prompt, 'suggestions': suggestions})}\n\n"

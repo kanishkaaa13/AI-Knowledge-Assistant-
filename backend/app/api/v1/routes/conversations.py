@@ -25,12 +25,21 @@ router = APIRouter()
 def list_conversations(
     request: Request,
     search: str | None = Query(default=None, min_length=1, max_length=255),
+    is_favorite: bool | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[ConversationListItem]:
     apply_rate_limit(request, scope="conversations-list", limit=60, user_id=str(current_user.id))
     safe_search = sanitize_text(search, max_length=255) if search else None
-    return ChatMemoryService(db).list_conversations(user=current_user, search=safe_search)
+    return ChatMemoryService(db).list_conversations(
+        user=current_user,
+        search=safe_search,
+        is_favorite=is_favorite,
+        date_from=date_from,
+        date_to=date_to,
+    )
 
 
 @router.post("", response_model=ConversationDetail, status_code=status.HTTP_201_CREATED)

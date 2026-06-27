@@ -77,6 +77,11 @@ class OllamaLLMService:
         ]
 
         if settings.LLM_PROVIDER == "groq":
+            if not settings.GROQ_API_KEY or settings.GROQ_API_KEY == "PASTE_YOUR_GROQ_KEY_HERE":
+                raise RuntimeError(
+                    "Groq API key is not set. Go to https://console.groq.com/keys, "
+                    "create a free key, and paste it as GROQ_API_KEY in backend/.env"
+                )
             headers = {
                 "Authorization": f"Bearer {settings.GROQ_API_KEY}",
                 "Content-Type": "application/json"
@@ -94,6 +99,11 @@ class OllamaLLMService:
                     headers=headers,
                     json=payload
                 ) as response:
+                    if response.status_code == 401:
+                        raise RuntimeError("Invalid Groq API key. Check your GROQ_API_KEY in backend/.env")
+                    if response.status_code != 200:
+                        body = await response.aread()
+                        raise RuntimeError(f"Groq API error {response.status_code}: {body.decode()}")
                     async for line in response.aiter_lines():
                         if line.startswith("data: "):
                             data = line[6:]
@@ -114,24 +124,35 @@ class OllamaLLMService:
         payload = {
             "model": selected_model,
             "prompt": prompt,
-            "stream": False
+            "stream": True  # Real token-by-token streaming
         }
 
-        print(f"[OLLAMA] POST {url} model={selected_model}")
+        print(f"[OLLAMA] STREAM POST {url} model={selected_model}")
 
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=10.0)) as client:
-                response = await client.post(url, json=payload)
-                if response.status_code != 200:
-                    raise RuntimeError(f"Ollama returned {response.status_code}: {response.text}")
-                
-                data = response.json()
-                token = data.get("response", "")
-                if token:
-                    print(f"[OLLAMA RESPONSE]: {token!r}")
-                    yield token
-                
-                print("[OLLAMA] Stream complete")
+                async with client.stream("POST", url, json=payload) as response:
+                    if response.status_code != 200:
+                        body = await response.aread()
+                        raise RuntimeError(f"Ollama returned {response.status_code}: {body.decode()}")
+
+                    async for line in response.aiter_lines():
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            chunk = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+
+                        token = chunk.get("response", "")
+                        if token:
+                            yield token
+
+                        # Ollama signals completion with done=True
+                        if chunk.get("done", False):
+                            print("[OLLAMA] Stream complete")
+                            break
 
         except httpx.ConnectError:
             raise RuntimeError("Cannot connect to Ollama. Make sure it is running: ollama serve")
